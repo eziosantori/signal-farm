@@ -1,6 +1,7 @@
 us_stocks:
   levels: 2
   allowed_directions: [LONG, SHORT]
+  ecosystem_monitor: true   # v0.2: VIX + sector ETF size multiplier (NAS100/US scope)
   scan_hours:
     timezone: "US/Eastern"
     weekdays: [0,1,2,3,4]   # Mon–Fri
@@ -56,6 +57,7 @@ us_stocks:
 indices_futures:
   levels: 3
   allowed_directions: [LONG, SHORT]
+  ecosystem_monitor: true   # v0.2: VIX + sector ETF size multiplier (NAS100/US scope)
   scan_hours:
     timezone: "UTC"
     weekdays: [0,1,2,3,4]   # Mon–Fri; ~23h session — broad window covers all global indices

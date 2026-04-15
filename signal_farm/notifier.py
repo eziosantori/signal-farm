@@ -213,6 +213,27 @@ def format_signal_message(sig: dict[str, Any]) -> str:
         lines.extend(f"  {p}" for p in ctx_parts)
         lines.append("")
 
+    # Ecosystem block — shown only for US assets when ecosystem is non-neutral
+    eco_label = sig.get("ecosystem_label")
+    eco_mult  = sig.get("ecosystem_multiplier")
+    eco_vix   = sig.get("ecosystem_vix")
+    eco_sect  = sig.get("ecosystem_sector_score")
+
+    if eco_label and eco_label != "GRAY":
+        _ECO_ICON = {
+            "BRIGHT_GREEN": "\U0001f7e2\U0001f7e2",   # 🟢🟢
+            "GREEN":        "\U0001f7e2",               # 🟢
+            "RED":          "\U0001f7e1",               # 🟡
+            "DARK_RED":     "\U0001f534",               # 🔴
+        }
+        eco_icon  = _ECO_ICON.get(eco_label, "\u26aa")  # ⚪ fallback
+        vix_s     = f"VIX {eco_vix:.1f}" if eco_vix is not None else ""
+        sect_s    = f"Settori {eco_sect:+.0f}/7" if eco_sect is not None else ""
+        mult_s    = f"Size {eco_mult:.1f}×" if eco_mult is not None else ""
+        eco_parts = [p for p in [vix_s, sect_s, mult_s] if p]
+        lines.append(f"\U0001f321\ufe0f <b>Ecosistema</b>: {eco_icon} {eco_label}  ({' | '.join(eco_parts)})")
+        lines.append("")
+
     lines.append(f"\u23f0 {time_str}  {bars_str}")
 
     return "\n".join(lines)

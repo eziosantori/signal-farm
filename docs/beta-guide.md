@@ -11,7 +11,7 @@ Signal Farm scansiona una watchlist di strumenti finanziari, identifica segnali 
 ### 1. Prerequisiti
 
 - Python 3.10+
-- Node.js 18+ (richiesto da Dukascopy per forex/indici/metalli)
+- Node.js 18+ (richiesto solo per backtest con `--provider dukascopy`)
 - Dipendenze Python:
 
 ```
@@ -168,10 +168,11 @@ Tutti gli script scrivono in `logs/` nella root del progetto:
 → Tutti i mercati sono chiusi. Usa `--no-skip-closed` per forzare la scansione.
 
 **Scan lento su forex/indici/metalli**
-→ Normale al primo run: Dukascopy scarica 2 anni di dati. Le run successive usano la cache.
+→ Normale al primo run su yfinance: scarica e mette in cache i dati recenti. Le run successive sono più veloci.
 
 **Dukascopy fallisce con "npx not found"**
-→ Installa Node.js da [nodejs.org](https://nodejs.org) e riavvia il terminale.
+→ Dukascopy è usato solo per i backtest (`--provider dukascopy`), non per lo scan live.
+  Se serve, installa Node.js da [nodejs.org](https://nodejs.org) e riavvia il terminale.
 
 **Score sempre bassi o nessun segnale**
 → Normale in mercati laterali o choppy. Il sistema è selettivo per design — meglio nessun segnale che segnali di bassa qualità.

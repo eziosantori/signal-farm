@@ -457,6 +457,18 @@ def cmd_scan(args, profiles, defaults):
     errors       = []
     t0           = _time.time()
 
+    # Pre-compute ecosystem state for US asset classes (cached internally; fast on repeat calls)
+    _ecosystem_cache: dict = {}
+
+    def _get_ecosystem(ac: str):
+        if ac not in _ecosystem_cache:
+            try:
+                from signals.ecosystem_monitor import aggregate_ecosystem_state
+                _ecosystem_cache[ac] = aggregate_ecosystem_state(ac)
+            except Exception:
+                _ecosystem_cache[ac] = None
+        return _ecosystem_cache[ac]
+
     scanned_count = 0
     for asset_class, group in groupby(ticker_list, key=lambda x: x["asset_class"]):
         group = list(group)
@@ -467,10 +479,14 @@ def cmd_scan(args, profiles, defaults):
             continue
 
         exec_interval = profile.get("executor", {}).get("interval", "1h")
+        eco_state     = _get_ecosystem(asset_class)
 
         if output_fmt == "table":
             status = "OPEN"
-            print(f"\n  {asset_class} (market {status} — {exec_interval} bars)")
+            eco_suffix = ""
+            if eco_state is not None and eco_state.label != "GRAY":
+                eco_suffix = f"  🌡 Eco:{eco_state.label} {eco_state.size_multiplier:.1f}×"
+            print(f"\n  {asset_class} (market {status} — {exec_interval} bars){eco_suffix}")
 
         for entry in group:
             canonical   = entry["canonical"]
@@ -495,6 +511,14 @@ def cmd_scan(args, profiles, defaults):
 
             sig["description"]  = description
             sig["variant_used"] = variant
+
+            # Attach ecosystem state to signal dict for notifier + history
+            if eco_state is not None:
+                sig["ecosystem_label"]        = eco_state.label
+                sig["ecosystem_multiplier"]   = eco_state.size_multiplier
+                sig["ecosystem_vix"]          = eco_state.vix_level
+                sig["ecosystem_sector_score"] = eco_state.sector_score
+
             results.append(sig)
 
             if output_fmt == "table":
@@ -583,7 +607,14 @@ def cmd_recap(args):
         message = format_history_list(signals)
     elif recap_type == "open":
         signals = load_history(hours=24)
-        message = format_open_brief(signals)
+        # Compute live ecosystem state for the open brief
+        eco_state = None
+        try:
+            from signals.ecosystem_monitor import aggregate_ecosystem_state
+            eco_state = aggregate_ecosystem_state("us_stocks")
+        except Exception:
+            pass
+        message = format_open_brief(signals, ecosystem_state=eco_state)
     elif recap_type == "close":
         signals = load_history(hours=24)
         message = format_close_brief(signals)
@@ -658,8 +689,8 @@ def build_parser():
                     help="Override backtest period for all timeframes (e.g. 60d, 1y, 2y)")
     bt.add_argument("--min-score", type=float, default=None, dest="min_score",
                     help="Minimum signal quality score (0-100) to trade. Default: no filter")
-    bt.add_argument("--provider", choices=["auto", "yfinance"], default="auto",
-                    help="Force data provider (default: auto). Use 'yfinance' when Dukascopy/Oanda unavailable")
+    bt.add_argument("--provider", choices=["auto", "yfinance", "dukascopy"], default="auto",
+                    help="Force data provider. 'dukascopy' for full historical data (backtest), 'yfinance' for live")
     bt.add_argument("--verbose", action="store_true", help="Enable debug logging")
 
     # ── compare ──
@@ -674,8 +705,8 @@ def build_parser():
                     help="Override backtest period for all timeframes (e.g. 60d, 1y, 2y)")
     cmp.add_argument("--min-score", type=float, default=None, dest="min_score",
                     help="Minimum signal quality score (0-100) to trade. Default: no filter")
-    cmp.add_argument("--provider", choices=["auto", "yfinance"], default="auto",
-                    help="Force data provider (default: auto). Use 'yfinance' when Dukascopy/Oanda unavailable")
+    cmp.add_argument("--provider", choices=["auto", "yfinance", "dukascopy"], default="auto",
+                    help="Force data provider. 'dukascopy' for full historical data (backtest), 'yfinance' for live")
 
     # ── chart ──
     ch = sub.add_parser("chart", help="Generate interactive HTML chart")

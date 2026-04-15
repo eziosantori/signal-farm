@@ -11,16 +11,25 @@ def calc_position_size(
     risk_pct: float,
     entry: float,
     stop: float,
+    size_multiplier: float = 1.0,
 ) -> float:
     """
-    Fixed fractional position sizing.
+    Fixed fractional position sizing with optional ecosystem multiplier.
+
     Returns number of units (shares/contracts). Returns 0 if risk is zero or negative.
+
+    Parameters
+    ----------
+    size_multiplier : scaling factor from EcosystemState (default 1.0 = no adjustment).
+                      Range 0.5–2.0. Applied after the base size calculation so that
+                      signal_score and risk parameters remain unchanged.
     """
     risk_amount = equity * risk_pct
     per_unit_risk = abs(entry - stop)
     if per_unit_risk <= 0:
         return 0.0
-    return risk_amount / per_unit_risk
+    base_size = risk_amount / per_unit_risk
+    return base_size * size_multiplier
 
 
 def calc_stop_loss(

@@ -172,18 +172,28 @@ def format_history_list(signals: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def format_open_brief(signals: list[dict[str, Any]]) -> str:
-    """Pre-session brief: 'cosa ho sul tavolo oggi?'"""
+def format_open_brief(signals: list[dict[str, Any]], ecosystem_state=None) -> str:
+    """
+    Pre-session brief: 'cosa ho sul tavolo oggi?'
+
+    Parameters
+    ----------
+    signals         : list of signal dicts from load_history()
+    ecosystem_state : optional EcosystemState from ecosystem_monitor.aggregate_ecosystem_state()
+                      — shown at top of brief when non-neutral
+    """
     now = datetime.now(tz=timezone.utc)
     date_s = now.strftime("%a %d %b, %H:%M UTC")
 
     if not signals:
-        return (
-            f"\U0001f4cb <b>SESSION OPEN BRIEF — {date_s}</b>\n"
-            + "\u2501" * 24 + "\n"
-            + "Nessun segnale attivo nelle ultime 24h.\n"
-            + "\u2501" * 24
-        )
+        no_sig_lines = [
+            f"\U0001f4cb <b>SESSION OPEN BRIEF — {date_s}</b>",
+            "\u2501" * 24,
+        ]
+        if ecosystem_state is not None and ecosystem_state.label != "GRAY":
+            no_sig_lines += ["", _format_ecosystem_line(ecosystem_state)]
+        no_sig_lines += ["", "Nessun segnale attivo nelle ultime 24h.", "\u2501" * 24]
+        return "\n".join(no_sig_lines)
 
     long_sigs  = [s for s in signals if s.get("direction") == "LONG"]
     short_sigs = [s for s in signals if s.get("direction") == "SHORT"]
@@ -195,6 +205,13 @@ def format_open_brief(signals: list[dict[str, Any]]) -> str:
     lines = [
         f"\U0001f4cb <b>SESSION OPEN BRIEF — {date_s}</b>",
         "\u2501" * 24,
+    ]
+
+    # Ecosystem state — shown before signals when non-neutral (actionable info first)
+    if ecosystem_state is not None and ecosystem_state.label != "GRAY":
+        lines += ["", _format_ecosystem_line(ecosystem_state)]
+
+    lines += [
         "",
         f"\U0001f514 <b>SEGNALI ATTIVI</b> (ultime 24h) — {len(signals)} totali",
     ]
@@ -347,6 +364,36 @@ def generate_reading(signals: list[dict[str, Any]]) -> str:
         parts.append("Alta volatilità. Considerare stop più ampi o size ridotta.")
 
     return " ".join(parts) if parts else "Analizza i livelli di entry/stop prima di agire."
+
+
+# ---------------------------------------------------------------------------
+# Ecosystem summary helper
+# ---------------------------------------------------------------------------
+
+def _format_ecosystem_line(ecosystem_state) -> str:
+    """Format one-line ecosystem status for session briefs."""
+    _ECO_ICONS = {
+        "BRIGHT_GREEN": "\U0001f7e2\U0001f7e2",
+        "GREEN":        "\U0001f7e2",
+        "RED":          "\U0001f7e1",
+        "DARK_RED":     "\U0001f534",
+    }
+    icon  = _ECO_ICONS.get(ecosystem_state.label, "\u26aa")
+    label = ecosystem_state.label
+
+    parts = []
+    if ecosystem_state.vix_level is not None:
+        parts.append(f"VIX {ecosystem_state.vix_level:.1f}")
+    if ecosystem_state.sector_score is not None:
+        parts.append(f"Settori {ecosystem_state.sector_score:+.0f}/7")
+
+    mult_s = f"{ecosystem_state.size_multiplier:.1f}\u00d7"   # e.g. "1.5×"
+    info   = f"({' | '.join(parts)})" if parts else ""
+
+    line = f"\U0001f321\ufe0f <b>Ecosistema NAS100</b>: {icon} {label}  {info}"
+    if ecosystem_state.size_multiplier != 1.0:
+        line += f"\n   \u2192 Moltiplicatore attivo: <b>{mult_s}</b>"
+    return line
 
 
 # ---------------------------------------------------------------------------
