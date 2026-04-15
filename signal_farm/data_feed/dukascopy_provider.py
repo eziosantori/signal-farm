@@ -83,7 +83,12 @@ class DukascopyProvider(DataProvider):
         self.price_type = price_type
         self.batch_pause_ms = batch_pause_ms
         self.retries = retries
-        self.npx_cmd = npx_cmd
+        # On Windows, subprocess can't resolve bare "npx" — needs the .cmd extension
+        import sys as _sys
+        if npx_cmd == "npx" and _sys.platform == "win32":
+            self.npx_cmd = "npx.cmd"
+        else:
+            self.npx_cmd = npx_cmd
         self.force_refresh = force_refresh
 
         self._instruments, self._timeframes = _load_catalog(_INSTRUMENTS_YAML)
@@ -294,6 +299,7 @@ class DukascopyProvider(DataProvider):
                     capture_output=True,
                     text=True,
                     timeout=300,
+                    stdin=subprocess.DEVNULL,
                 )
             except FileNotFoundError:
                 raise DataUnavailableError(

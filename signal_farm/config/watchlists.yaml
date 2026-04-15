@@ -49,3 +49,26 @@ crypto:
   - ETHUSD
   - LTCUSD
   - ADAUSD
+
+# ---------------------------------------------------------------------------
+# Named watchlists — subsets for specific scan runs
+# Usage: python main.py scan --watchlist beta
+# ---------------------------------------------------------------------------
+named_watchlists:
+  beta:
+    # MAG7 (esclusi AAPL ❌ e GOOGL ❌ — no edge nei backtest)
+    - MSFT    # ✅ Sharpe 0.91
+    - TSLA    # ✅ Sharpe 0.98
+    - META    # ✅ Sharpe 0.74
+    - AMZN    # ✅ Sharpe 0.68
+    - NVDA    # ⚠️ Sharpe 0.31 — marginal, incluso per il beta
+    # Indici
+    - NAS100  # ✅ Sharpe 0.86 (Variant B)
+    - GER40   # ✅ Sharpe 1.40 (Variant A)
+    # Metalli
+    - XAUUSD  # ✅ Sharpe 1.82 (Variant B)
+    # Forex
+    - EURUSD  # ✅ Sharpe 0.57 (Variant B)
+    - GBPUSD  # ✅ Sharpe 0.76 (Variant B)
+    # Crypto
+    - BTCUSD  # ⚠️ Sharpe 1.07 (Variant B) — incluso per beta

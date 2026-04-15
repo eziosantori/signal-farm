@@ -21,42 +21,56 @@ forex:
     asset_class: forex
     description: "Euro / US Dollar"
     yfinance: "EURUSD=X"
+    best_variant: B             # ✅ Sharpe 0.57 | PF 1.20 | +20.4% | 403 trades/2y
+    edge: "good"
 
   GBPUSD:
     feed: gbpusd
     asset_class: forex
     description: "British Pound / US Dollar"
     yfinance: "GBPUSD=X"
+    best_variant: B             # ✅ Sharpe 0.76 | PF 1.26 | +34.1% | 449 trades/2y
+    edge: "good"
 
   USDJPY:
     feed: usdjpy
     asset_class: forex
     description: "US Dollar / Japanese Yen"
     yfinance: "USDJPY=X"
+    best_variant: A             # ❌ Sharpe 0.15 | PF 1.04 — near breakeven, avoid
+    edge: "none"
 
   USDCHF:
     feed: usdchf
     asset_class: forex
     description: "US Dollar / Swiss Franc"
     yfinance: "USDCHF=X"
+    best_variant: B             # ❌ all variants negative — no edge
+    edge: "none"
 
   AUDUSD:
     feed: audusd
     asset_class: forex
     description: "Australian Dollar / US Dollar"
     yfinance: "AUDUSD=X"
+    best_variant: A             # ❌ all variants negative — no edge
+    edge: "none"
 
   USDCAD:
     feed: usdcad
     asset_class: forex
     description: "US Dollar / Canadian Dollar"
     yfinance: "USDCAD=X"
+    best_variant: A             # ✅ Sharpe 1.27 | PF 1.50 | +61.3% | 259 trades/2y
+    edge: "strong"
 
   NZDUSD:
     feed: nzdusd
     asset_class: forex
     description: "New Zealand Dollar / US Dollar"
     yfinance: "NZDUSD=X"
+    best_variant: C             # ⚠️ Sharpe 0.48 | PF 1.22 | +11.3% — marginal
+    edge: "marginal"
 
 # ---------------------------------------------------------------------------
 # Forex Crosses
@@ -66,30 +80,38 @@ forex:
     asset_class: forex
     description: "Euro / British Pound"
     yfinance: "EURGBP=X"
+    best_variant: A             # ⚠️ Sharpe 0.37 | PF 1.14 | +11.1% — marginal
+    edge: "marginal"
 
   EURJPY:
     feed: eurjpy
     asset_class: forex
     description: "Euro / Japanese Yen"
     yfinance: "EURJPY=X"
+    best_variant: C             # ⚠️ Sharpe 0.41 | PF 1.19 | +8.4% — marginal
+    edge: "marginal"
 
   GBPJPY:
     feed: gbpjpy
     asset_class: forex
     description: "British Pound / Japanese Yen"
     yfinance: "GBPJPY=X"
+    best_variant: B             # ✅ Sharpe 0.67 | PF 1.24 | +23.7% — DD alto (-26.5%)
+    edge: "good"
 
   EURCHF:
     feed: eurchf
     asset_class: forex
     description: "Euro / Swiss Franc"
     yfinance: "EURCHF=X"
+    # not yet backtested
 
   AUDJPY:
     feed: audjpy
     asset_class: forex
     description: "Australian Dollar / Japanese Yen"
     yfinance: "AUDJPY=X"
+    # not yet backtested
 
 # ---------------------------------------------------------------------------
 # Precious Metals (CFD/Spot — 24h/23h trading)

@@ -101,11 +101,16 @@ def get_provider(ticker: str) -> DataProvider:
     """
     Return the best DataProvider for `ticker`.
 
-    1. AlpacaProvider   → US stocks when ALPACA_API_KEY/SECRET are set
-    2. CcxtProvider     → crypto instruments with a ccxt symbol (no auth needed)
-    3. OandaProvider    → CFD instruments (forex/indices/metals/energies) when OANDA_API_KEY set
-    4. DukascopyProvider → instruments with a valid Dukascopy feed
-    5. YFinanceProvider  → fallback
+    Priority for live scanning:
+    1. AlpacaProvider    → US stocks when ALPACA_API_KEY/SECRET are set
+    2. CcxtProvider      → crypto instruments with a ccxt symbol (no auth needed)
+    3. OandaProvider     → CFD instruments when OANDA_API_KEY set
+    4. TwelveDataProvider → CFD instruments when TWELVEDATA_API_KEY set (future)
+    5. YFinanceProvider  → CFD fallback (live, refreshes every hour)
+
+    Note: DukascopyProvider is intentionally excluded from auto-selection.
+    It is a historical-only provider (parquet cache, no intraday refresh) and
+    is only used when explicitly requested via --provider dukascopy in CLI commands.
     """
     symbol = _normalize_symbol(ticker)
     feed_map, us_stocks, crypto_syms, oanda_syms = _get_maps()
@@ -128,12 +133,13 @@ def get_provider(ticker: str) -> DataProvider:
         logger.debug("%s → OandaProvider", ticker)
         return OandaProvider()
 
-    # 4. Dukascopy for instruments with a valid feed
-    if feed_map.get(symbol) is not None:
-        from data_feed.dukascopy_provider import DukascopyProvider
-        logger.debug("%s → DukascopyProvider (feed: %s)", ticker, feed_map[symbol])
-        return DukascopyProvider()
-
-    # 5. Fallback
-    logger.debug("%s → YFinanceProvider", ticker)
+    # 4. yfinance — live fallback for all remaining instruments
+    #    Refreshes hourly cache; suitable for CFD scanning until TwelveData is configured.
+    logger.debug("%s → YFinanceProvider (live fallback)", ticker)
     return YFinanceProvider()
+
+
+def get_dukascopy_provider() -> "DukascopyProvider":
+    """Return a DukascopyProvider instance. Used explicitly for backtests."""
+    from data_feed.dukascopy_provider import DukascopyProvider
+    return DukascopyProvider()

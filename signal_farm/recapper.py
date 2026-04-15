@@ -6,7 +6,9 @@ Responsibilities:
   - load_history(hours=24)          : read signals sent in the last N hours
   - format_open_brief(signals)      : pre-session Telegram message ("cosa ho sul tavolo?")
   - format_close_brief(signals)     : post-session Telegram message ("cosa è successo oggi?")
-  - generate_reading(signals)       : deterministic interpretive text for the brief
+  - format_week_brief(signals)      : weekly recap Telegram message (run on Mondays)
+  - generate_reading(signals)       : deterministic interpretive text for daily briefs
+  - generate_week_reading(signals)  : deterministic interpretive text for weekly recap
   - format_history_list(signals)    : compact list of recent signals (for --last Nh)
 
 History file: .signal_farm_history.jsonl  (append-only, one JSON object per line)
@@ -373,6 +375,222 @@ def _macro_summary(signals: list[dict[str, Any]]) -> list[str]:
             regime = ""  # only add once per signal
 
     return lines[:4]
+
+
+# ---------------------------------------------------------------------------
+# Weekly recap
+# ---------------------------------------------------------------------------
+
+_WEEK_HOURS = 14 * 24   # 2 weeks
+
+
+def format_week_brief(signals: list[dict[str, Any]]) -> str:
+    """
+    Weekly recap — designed to be sent on Mondays.
+    Covers the last 2 weeks of signals (descriptive stats only,
+    no outcome tracking — outcomes are a future feature).
+    """
+    now    = datetime.now(tz=timezone.utc)
+    date_s = now.strftime("%a %d %b %Y")
+
+    header = [
+        f"\U0001f4c6 <b>WEEK RECAP — {date_s}</b>",
+        "\u2501" * 24,
+        "<i>Analisi ultimi 14 giorni · outcome non tracciato</i>",
+    ]
+
+    if not signals:
+        return "\n".join(header + ["", "Nessun segnale nelle ultime 2 settimane.", "\u2501" * 24])
+
+    long_sigs  = [s for s in signals if s.get("direction") == "LONG"]
+    short_sigs = [s for s in signals if s.get("direction") == "SHORT"]
+    long_pct   = len(long_sigs) / len(signals) * 100
+
+    # --- Asset class breakdown ---
+    asset_counts: dict[str, int] = {}
+    for sig in signals:
+        ac = sig.get("asset_class", "unknown")
+        asset_counts[ac] = asset_counts.get(ac, 0) + 1
+
+    # --- Scores ---
+    scores = [
+        s["signal_score"] for s in signals
+        if s.get("signal_score") is not None and s["signal_score"] == s["signal_score"]
+    ]
+    avg_score = sum(scores) / len(scores) if scores else None
+    min_score = min(scores) if scores else None
+    max_score = max(scores) if scores else None
+    strong_count = sum(1 for sc in scores if sc >= 70)
+
+    # --- Week-over-week split ---
+    week1_cutoff = now - timedelta(hours=_WEEK_HOURS)
+    week2_cutoff = now - timedelta(hours=_WEEK_HOURS // 2)   # 7 days ago
+
+    week1 = [s for s in signals if _sent_at_dt(s) < week2_cutoff]
+    week2 = [s for s in signals if _sent_at_dt(s) >= week2_cutoff]
+
+    week1_scores = [s["signal_score"] for s in week1 if s.get("signal_score") is not None and s["signal_score"] == s["signal_score"]]
+    week2_scores = [s["signal_score"] for s in week2 if s.get("signal_score") is not None and s["signal_score"] == s["signal_score"]]
+    week1_avg = sum(week1_scores) / len(week1_scores) if week1_scores else None
+    week2_avg = sum(week2_scores) / len(week2_scores) if week2_scores else None
+
+    # --- Daily distribution ---
+    day_counts: dict[str, int] = {}
+    for sig in signals:
+        dt = _sent_at_dt(sig)
+        day_key = dt.strftime("%a %d/%m")
+        day_counts[day_key] = day_counts.get(day_key, 0) + 1
+    busiest_day, busiest_n = max(day_counts.items(), key=lambda x: x[1])
+
+    # --- Dominant macro ---
+    mkt_labels = [s.get("ctx_market_label", "") for s in signals if s.get("ctx_market_label")]
+    dominant_mkt = max(set(mkt_labels), key=mkt_labels.count) if mkt_labels else "—"
+    regimes = [s.get("ctx_regime", "") for s in signals if s.get("ctx_regime")]
+    dominant_regime = max(set(regimes), key=regimes.count) if regimes else "—"
+
+    # --- Build message ---
+    lines = header + [""]
+
+    # Volume
+    lines += [
+        "<b>VOLUME</b>",
+        f"  Segnali totali:  {len(signals)}",
+        f"  LONG: {len(long_sigs)} ({long_pct:.0f}%)  |  SHORT: {len(short_sigs)} ({100-long_pct:.0f}%)",
+        f"  Giorno più attivo: {busiest_day} ({busiest_n} segnali)",
+    ]
+
+    # Asset breakdown
+    asset_parts = "  ".join(f"{ac} ×{n}" for ac, n in sorted(asset_counts.items()))
+    lines += ["", "<b>ASSET CLASS</b>", f"  {asset_parts}"]
+
+    # Score quality
+    if avg_score is not None:
+        lines += ["", "<b>QUALITÀ SEGNALI</b>"]
+        lines.append(f"  Score medio:  {avg_score:.1f}/100  (min {min_score:.0f} · max {max_score:.0f})")
+        lines.append(f"  Score ≥70:    {strong_count}/{len(scores)}")
+
+        if week1_avg is not None and week2_avg is not None:
+            trend_arrow = "\u2191" if week2_avg > week1_avg else "\u2193" if week2_avg < week1_avg else "\u2192"
+            lines.append(
+                f"  Trend score:  sett.1 {week1_avg:.1f} → sett.2 {week2_avg:.1f}  {trend_arrow}"
+            )
+
+    # Macro
+    lines += [
+        "",
+        "<b>MACRO DOMINANTE</b>",
+        f"  Mercato: {dominant_mkt}",
+        f"  Regime:  {dominant_regime}",
+    ]
+
+    # Interpretive reading
+    reading = generate_week_reading(signals, week1, week2, dominant_mkt, dominant_regime)
+    if reading:
+        lines += ["", "\U0001f4a1 <b>LETTURA</b>", f"  {reading}"]
+
+    # Disclaimer
+    lines += [
+        "",
+        "<i>\u26a0\ufe0f Outcome non tracciato. Statistiche basate sui segnali</i>",
+        "<i>   generati, non sui risultati reali delle trade.</i>",
+        "\u2501" * 24,
+    ]
+
+    return "\n".join(lines)
+
+
+def generate_week_reading(
+    signals: list[dict[str, Any]],
+    week1: list[dict[str, Any]],
+    week2: list[dict[str, Any]],
+    dominant_mkt: str,
+    dominant_regime: str,
+) -> str:
+    """Deterministic interpretive text for the weekly recap."""
+    if not signals:
+        return ""
+
+    parts = []
+
+    long_sigs  = [s for s in signals if s.get("direction") == "LONG"]
+    short_sigs = [s for s in signals if s.get("direction") == "SHORT"]
+    long_pct   = len(long_sigs) / len(signals)
+
+    scores = [
+        s["signal_score"] for s in signals
+        if s.get("signal_score") is not None and s["signal_score"] == s["signal_score"]
+    ]
+    avg_score = sum(scores) / len(scores) if scores else None
+
+    asset_classes = {s.get("asset_class", "") for s in signals if s.get("asset_class")}
+
+    # Week-over-week momentum
+    w1_scores = [s["signal_score"] for s in week1 if s.get("signal_score") is not None and s["signal_score"] == s["signal_score"]]
+    w2_scores = [s["signal_score"] for s in week2 if s.get("signal_score") is not None and s["signal_score"] == s["signal_score"]]
+    w1_avg = sum(w1_scores) / len(w1_scores) if w1_scores else None
+    w2_avg = sum(w2_scores) / len(w2_scores) if w2_scores else None
+
+    # Directional bias
+    if long_pct >= 0.80 and "BULL" in dominant_mkt.upper():
+        parts.append("Forte bias LONG, allineato con macro bullish. Il sistema è in fase di momentum.")
+    elif long_pct <= 0.20 and "BEAR" in dominant_mkt.upper():
+        parts.append("Forte bias SHORT, allineato con macro bearish. Il sistema è in fase difensiva.")
+    elif 0.35 <= long_pct <= 0.65:
+        parts.append("Bias direzionale equilibrato. Il mercato non mostra una tendenza dominante — selettività alta consigliata.")
+    elif long_pct > 0.65 and "BEAR" in dominant_mkt.upper():
+        parts.append("Bias LONG ma macro bearish: i segnali contrastano il trend macro. Attenzione al rischio di false breakout.")
+    elif long_pct < 0.35 and "BULL" in dominant_mkt.upper():
+        parts.append("Bias SHORT in macro bullish: rotazione o correzione in corso. Verifica i timeframe superiori.")
+
+    # Score trend week-over-week
+    if w1_avg is not None and w2_avg is not None:
+        diff = w2_avg - w1_avg
+        if diff >= 5:
+            parts.append(f"Qualità segnali in miglioramento (+{diff:.1f} punti in settimana 2). Setup più puliti.")
+        elif diff <= -5:
+            parts.append(f"Qualità segnali in calo ({diff:.1f} punti in settimana 2). Mercato più rumoroso.")
+
+    # Absolute score quality
+    if avg_score is not None:
+        if avg_score < 62:
+            parts.append("Score medio basso: la settimana ha prodotto pochi setup di qualità. Aspettare.")
+        elif avg_score >= 75:
+            parts.append("Score medio elevato: batch di buona qualità complessiva.")
+
+    # Asset concentration
+    if len(asset_classes) == 1:
+        cls = next(iter(asset_classes))
+        parts.append(f"Tutti i segnali su {cls}: rischio di correlazione elevato.")
+    elif len(asset_classes) >= 3:
+        parts.append("Buona diversificazione tra asset class.")
+
+    # Regime
+    if "VOLATILE" in dominant_regime.upper() or "CHOP" in dominant_regime.upper():
+        parts.append("Regime volatile dominante: dimensioni di posizione ridotte e stop più ampi raccomandati.")
+    elif "TRENDING" in dominant_regime.upper():
+        parts.append("Regime trending: favorisce le strategie momentum del sistema.")
+
+    # Low volume
+    if len(signals) <= 2:
+        parts.append("Settimana a basso volume di segnali: dati insufficienti per conclusioni robuste.")
+
+    return " ".join(parts) if parts else "Settimana nella norma. Nessuna anomalia rilevata."
+
+
+# ---------------------------------------------------------------------------
+# Internal helper
+# ---------------------------------------------------------------------------
+
+def _sent_at_dt(sig: dict[str, Any]) -> datetime:
+    """Parse sent_at from a history record, returning UTC datetime."""
+    sent_at_s = sig.get("sent_at", "")
+    try:
+        dt = datetime.fromisoformat(sent_at_s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return datetime.min.replace(tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------------------

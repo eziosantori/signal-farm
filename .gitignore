@@ -24,6 +24,11 @@ build/
 output/
 *.html
 
+# Runtime state & history
+.signal_farm_state.json
+.signal_farm_history.jsonl
+logs/
+
 # OS
 .DS_Store
 Thumbs.db

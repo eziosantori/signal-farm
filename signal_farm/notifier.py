@@ -118,6 +118,12 @@ def format_signal_message(sig: dict[str, Any]) -> str:
     target = sig.get("target")
     rr     = sig.get("rr")
 
+    score_trend    = sig.get("score_trend")
+    score_momentum = sig.get("score_momentum")
+    score_entry    = sig.get("score_entry")
+    ctx_rel_vol    = sig.get("ctx_rel_vol")
+    ctx_atr_pct    = sig.get("ctx_atr_pct")
+
     ctx_trend  = sig.get("ctx_trend_label") or "—"
     ctx_regime = sig.get("ctx_regime") or ""
     ctx_rsi    = sig.get("ctx_rsi")
@@ -138,6 +144,13 @@ def format_signal_message(sig: dict[str, Any]) -> str:
             return str(v)
 
     score_str = f"{score:.0f}/100" if score is not None and score == score else "N/A"
+
+    def _bar(val, max_val, width=8):
+        if val is None or (isinstance(val, float) and val != val) or max_val == 0:
+            return "░" * width
+        filled = round((float(val) / max_val) * width)
+        filled = max(0, min(width, filled))
+        return "█" * filled + "░" * (width - filled)
 
     # Stop / target distance as %
     if entry and stop and entry != 0:
@@ -166,14 +179,30 @@ def format_signal_message(sig: dict[str, Any]) -> str:
         "",
     ]
 
-    # Context block
+    # Score breakdown block
+    has_subscores = any(v is not None for v in [score_trend, score_momentum, score_entry])
+    if has_subscores:
+        lines.append("\U0001f4ca <b>Score</b>  " + score_str)
+        if score_trend is not None and score_trend == score_trend:
+            roc_s = f"  ROC {ctx_roc:+.1f}%" if ctx_roc is not None and ctx_roc == ctx_roc else ""
+            lines.append(f"  Trend      <code>{_bar(score_trend, 45)}</code>  {_p(score_trend, '.0f'):>2}/45{roc_s}")
+        if score_momentum is not None and score_momentum == score_momentum:
+            rsi_s = f"  RSI {ctx_rsi:.1f}" if ctx_rsi is not None and ctx_rsi == ctx_rsi else ""
+            lines.append(f"  Momentum   <code>{_bar(score_momentum, 30)}</code>  {_p(score_momentum, '.0f'):>2}/30{rsi_s}")
+        if score_entry is not None and score_entry == score_entry:
+            vol_s = f"  Vol {ctx_rel_vol:.1f}x" if ctx_rel_vol is not None and ctx_rel_vol == ctx_rel_vol else ""
+            atr_s = f"  ATR {ctx_atr_pct:.2f}%" if ctx_atr_pct is not None and ctx_atr_pct == ctx_atr_pct else ""
+            lines.append(f"  Entry      <code>{_bar(score_entry, 25)}</code>  {_p(score_entry, '.0f'):>2}/25{vol_s}{atr_s}")
+        lines.append("")
+
+    # Context block — skip trend/RSI if already shown in score breakdown
     ctx_parts = []
-    if ctx_trend and ctx_trend != "—":
+    if ctx_trend and ctx_trend != "—" and not has_subscores:
         roc_s = f" ROC {ctx_roc:+.1f}%" if ctx_roc is not None and ctx_roc == ctx_roc else ""
         ctx_parts.append(f"Trend: {ctx_trend}{roc_s}")
     if ctx_regime:
         ctx_parts.append(f"Regime: {ctx_regime}")
-    if ctx_rsi is not None and ctx_rsi == ctx_rsi:
+    if ctx_rsi is not None and ctx_rsi == ctx_rsi and not has_subscores:
         ctx_parts.append(f"RSI {ctx_rsi:.1f}")
     if mkt_name and mkt_label:
         mkt_roc_s = f" ({mkt_roc * 100:+.1f}%)" if mkt_roc is not None and mkt_roc == mkt_roc else ""

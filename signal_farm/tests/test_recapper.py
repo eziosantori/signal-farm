@@ -306,3 +306,141 @@ class TestGenerateReading:
         result = recapper.generate_reading([sig])
         assert isinstance(result, str)
         assert len(result) > 0
+
+
+# ---------------------------------------------------------------------------
+# format_week_brief
+# ---------------------------------------------------------------------------
+
+def _make_sig_days_ago(days: float, **kwargs) -> dict:
+    sig = _make_sig(**kwargs)
+    sig["sent_at"] = (datetime.now(tz=timezone.utc) - timedelta(days=days)).isoformat()
+    return sig
+
+
+class TestFormatWeekBrief:
+    def test_empty(self):
+        result = recapper.format_week_brief([])
+        assert "WEEK RECAP" in result
+        assert "Nessun segnale" in result
+
+    def test_contains_total_count(self):
+        sigs = [_make_sig_days_ago(i) for i in range(1, 5)]
+        result = recapper.format_week_brief(sigs)
+        assert "4" in result
+
+    def test_contains_direction_breakdown(self):
+        sigs = [
+            _make_sig_days_ago(1, direction="LONG"),
+            _make_sig_days_ago(2, direction="SHORT"),
+        ]
+        result = recapper.format_week_brief(sigs)
+        assert "LONG" in result
+        assert "SHORT" in result
+
+    def test_contains_asset_class(self):
+        sigs = [_make_sig_days_ago(1, asset_class="crypto")]
+        result = recapper.format_week_brief(sigs)
+        assert "crypto" in result
+
+    def test_contains_score_stats(self):
+        sigs = [_make_sig_days_ago(1, score=72.0), _make_sig_days_ago(2, score=80.0)]
+        result = recapper.format_week_brief(sigs)
+        assert "76" in result or "72" in result or "80" in result
+
+    def test_contains_disclaimer(self):
+        sigs = [_make_sig_days_ago(1)]
+        result = recapper.format_week_brief(sigs)
+        assert "outcome" in result.lower()
+
+    def test_week_over_week_trend_shown(self):
+        # week1: 8-14 days ago, week2: 1-7 days ago
+        sigs = (
+            [_make_sig_days_ago(10, score=60.0) for _ in range(3)] +
+            [_make_sig_days_ago(2,  score=80.0) for _ in range(3)]
+        )
+        result = recapper.format_week_brief(sigs)
+        # score trend section should appear
+        assert "sett." in result
+
+    def test_contains_lettura(self):
+        sigs = [_make_sig_days_ago(i, direction="LONG", ctx_market_label="BULL") for i in range(1, 6)]
+        result = recapper.format_week_brief(sigs)
+        assert "LETTURA" in result
+
+
+# ---------------------------------------------------------------------------
+# generate_week_reading (rule-based)
+# ---------------------------------------------------------------------------
+
+class TestGenerateWeekReading:
+    def _call(self, signals, dominant_mkt="BULL", dominant_regime="TRENDING"):
+        week1 = signals[:len(signals)//2]
+        week2 = signals[len(signals)//2:]
+        return recapper.generate_week_reading(signals, week1, week2, dominant_mkt, dominant_regime)
+
+    def test_empty(self):
+        result = recapper.generate_week_reading([], [], [], "", "")
+        assert result == ""
+
+    def test_strong_long_bull(self):
+        sigs = [_make_sig(direction="LONG") for _ in range(8)] + [_make_sig(direction="SHORT")]
+        result = self._call(sigs, dominant_mkt="BULL")
+        assert "long" in result.lower() or "momentum" in result.lower()
+
+    def test_strong_short_bear(self):
+        sigs = [_make_sig(direction="SHORT") for _ in range(8)] + [_make_sig(direction="LONG")]
+        result = self._call(sigs, dominant_mkt="BEAR")
+        assert "short" in result.lower() or "difensiva" in result.lower()
+
+    def test_balanced_signals(self):
+        sigs = [_make_sig(direction="LONG") for _ in range(5)] + [_make_sig(direction="SHORT") for _ in range(5)]
+        result = self._call(sigs)
+        assert "equilibrat" in result.lower() or "tendenza" in result.lower() or "selettività" in result.lower()
+
+    def test_score_improving(self):
+        week1 = [_make_sig(score=60.0)] * 3
+        week2 = [_make_sig(score=80.0)] * 3
+        result = recapper.generate_week_reading(week1 + week2, week1, week2, "BULL", "TRENDING")
+        assert "miglioramento" in result.lower() or "puliti" in result.lower()
+
+    def test_score_declining(self):
+        week1 = [_make_sig(score=80.0)] * 3
+        week2 = [_make_sig(score=58.0)] * 3
+        result = recapper.generate_week_reading(week1 + week2, week1, week2, "BULL", "TRENDING")
+        assert "calo" in result.lower() or "rumoroso" in result.lower()
+
+    def test_volatile_regime(self):
+        sigs = [_make_sig()] * 4
+        result = self._call(sigs, dominant_regime="VOLATILE")
+        assert "volatile" in result.lower() or "stop" in result.lower()
+
+    def test_trending_regime(self):
+        sigs = [_make_sig()] * 4
+        result = self._call(sigs, dominant_regime="TRENDING")
+        assert "trending" in result.lower() or "momentum" in result.lower()
+
+    def test_single_asset_class_concentration(self):
+        sigs = [_make_sig(asset_class="crypto")] * 5
+        result = self._call(sigs)
+        assert "crypto" in result or "correlazione" in result.lower()
+
+    def test_diverse_asset_classes(self):
+        sigs = [
+            _make_sig(asset_class="us_stocks"),
+            _make_sig(asset_class="crypto"),
+            _make_sig(asset_class="forex"),
+        ]
+        result = self._call(sigs)
+        assert "diversificazione" in result.lower() or "asset" in result.lower()
+
+    def test_low_volume_warning(self):
+        sigs = [_make_sig()]
+        result = self._call(sigs)
+        assert "basso volume" in result.lower() or "insufficienti" in result.lower()
+
+    def test_returns_string(self):
+        sigs = [_make_sig()] * 3
+        result = self._call(sigs)
+        assert isinstance(result, str)
+        assert len(result) > 0

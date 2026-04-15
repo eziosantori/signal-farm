@@ -86,6 +86,59 @@ def _apply_direction_override(args, profiles):
     return profiles
 
 
+def _resolve_provider_and_ticker(args):
+    """
+    Return (provider, effective_ticker) for backtest/compare commands.
+
+    When --provider yfinance is set, bypasses the factory and looks up the
+    yfinance ticker from instruments.yaml so Dukascopy is never attempted.
+    Otherwise delegates to get_provider() as usual.
+    """
+    provider_arg = getattr(args, "provider", "auto")
+
+    if provider_arg == "dukascopy":
+        from data_feed.provider_factory import get_dukascopy_provider
+        import yaml as _yaml
+        instr_path = os.path.join(CONFIG_DIR, "instruments.yaml")
+        with open(instr_path, encoding="utf-8") as f:
+            instruments = _yaml.safe_load(f)
+        instruments.pop("timeframes", None)
+        # Dukascopy uses canonical ticker — just confirm it has a feed
+        feed = None
+        for section in instruments.values():
+            if isinstance(section, dict) and args.ticker in section:
+                feed = section[args.ticker].get("feed")
+                break
+        if not feed or feed == "~":
+            print(f"Error: {args.ticker} has no Dukascopy feed ID in instruments.yaml")
+            sys.exit(1)
+        print(f"  [provider=dukascopy] feed: {feed}")
+        return get_dukascopy_provider(), args.ticker
+
+    if provider_arg != "yfinance":
+        return get_provider(args.ticker), args.ticker
+
+    from data_feed.yfinance_provider import YFinanceProvider
+    import yaml as _yaml
+
+    instr_path = os.path.join(CONFIG_DIR, "instruments.yaml")
+    with open(instr_path, encoding="utf-8") as f:
+        instruments = _yaml.safe_load(f)
+    instruments.pop("timeframes", None)
+
+    yf_ticker = None
+    for section in instruments.values():
+        if isinstance(section, dict) and args.ticker in section:
+            yf_ticker = section[args.ticker].get("yfinance")
+            break
+
+    effective_ticker = yf_ticker or args.ticker
+    if yf_ticker:
+        print(f"  [provider=yfinance] using ticker: {yf_ticker}")
+
+    return YFinanceProvider(), effective_ticker
+
+
 def _bar(score, max_score, width=10):
     """Render a simple ASCII progress bar."""
     filled = round((score / max_score) * width) if max_score > 0 else 0
@@ -154,11 +207,11 @@ def cmd_backtest(args, profiles, defaults):
     equity = args.equity
     risk_pct = args.risk_pct
 
-    provider = get_provider(args.ticker)
+    provider, effective_ticker = _resolve_provider_and_ticker(args)
 
     try:
         signal_df = generate_signals(
-            ticker=args.ticker,
+            ticker=effective_ticker,
             asset_class=args.asset,
             variant=args.variant,
             provider=provider,
@@ -269,12 +322,12 @@ def cmd_compare(args, profiles, defaults):
     print(f"{'Variant':<10} {'Raw':>6} {'Kept':>6} {'Win%':>6} {'AvgRR':>7} {'PF':>6} {'MaxDD%':>8} {'Return%':>9} {'Sharpe':>7} {'AvgScore':>9}")
     print(f"{'-'*80}")
 
-    provider = get_provider(args.ticker)
+    provider, effective_ticker = _resolve_provider_and_ticker(args)
 
     for variant in ["A", "B", "C"]:
         try:
             signal_df = generate_signals(
-                ticker=args.ticker,
+                ticker=effective_ticker,
                 asset_class=args.asset,
                 variant=variant,
                 provider=provider,
@@ -383,7 +436,12 @@ def cmd_scan(args, profiles, defaults):
     output_fmt       = getattr(args, "output", "table")
     period_override  = getattr(args, "period", None)
 
-    ticker_list = build_ticker_list(instruments, watchlists, asset_classes=asset_filter)
+    watchlist_name = getattr(args, "watchlist", None)
+    ticker_list = build_ticker_list(
+        instruments, watchlists,
+        asset_classes=asset_filter,
+        watchlist_name=watchlist_name,
+    )
     if not ticker_list:
         print("No tickers to scan.")
         sys.exit(0)
@@ -512,7 +570,7 @@ def _print_scan_row(sig: dict):
 
 
 def cmd_recap(args):
-    from recapper import load_history, format_history_list, format_open_brief, format_close_brief
+    from recapper import load_history, format_history_list, format_open_brief, format_close_brief, format_week_brief
 
     recap_type = getattr(args, "type", None)
     last_str   = getattr(args, "last", None)
@@ -529,8 +587,12 @@ def cmd_recap(args):
     elif recap_type == "close":
         signals = load_history(hours=24)
         message = format_close_brief(signals)
+    elif recap_type == "week":
+        from recapper import _WEEK_HOURS
+        signals = load_history(hours=_WEEK_HOURS)
+        message = format_week_brief(signals)
     else:
-        print("Error: specify --type open|close or --last <Nh>")
+        print("Error: specify --type open|close|week or --last <Nh>")
         sys.exit(1)
 
     if dry_run:
@@ -596,6 +658,8 @@ def build_parser():
                     help="Override backtest period for all timeframes (e.g. 60d, 1y, 2y)")
     bt.add_argument("--min-score", type=float, default=None, dest="min_score",
                     help="Minimum signal quality score (0-100) to trade. Default: no filter")
+    bt.add_argument("--provider", choices=["auto", "yfinance"], default="auto",
+                    help="Force data provider (default: auto). Use 'yfinance' when Dukascopy/Oanda unavailable")
     bt.add_argument("--verbose", action="store_true", help="Enable debug logging")
 
     # ── compare ──
@@ -610,6 +674,8 @@ def build_parser():
                     help="Override backtest period for all timeframes (e.g. 60d, 1y, 2y)")
     cmp.add_argument("--min-score", type=float, default=None, dest="min_score",
                     help="Minimum signal quality score (0-100) to trade. Default: no filter")
+    cmp.add_argument("--provider", choices=["auto", "yfinance"], default="auto",
+                    help="Force data provider (default: auto). Use 'yfinance' when Dukascopy/Oanda unavailable")
 
     # ── chart ──
     ch = sub.add_parser("chart", help="Generate interactive HTML chart")
@@ -625,6 +691,8 @@ def build_parser():
                     help="Override best_variant for all tickers (default: per-instrument best_variant)")
     sc.add_argument("--min-score", type=float, default=None, dest="min_score",
                     help="Minimum signal score (overrides profile default)")
+    sc.add_argument("--watchlist", default=None, metavar="NAME",
+                    help="Use a named watchlist subset (e.g. 'beta'). Defined in watchlists.yaml under named_watchlists.")
     sc.add_argument("--no-skip-closed", action="store_true", dest="no_skip_closed",
                     help="Scan all asset classes even if market is closed")
     sc.add_argument("--period", default=None,
@@ -638,8 +706,8 @@ def build_parser():
 
     # ── recap ──
     rc = sub.add_parser("recap", help="Send or preview a session recap from signal history")
-    rc.add_argument("--type", choices=["open", "close"], default=None,
-                    help="open = pre-session brief, close = post-session brief")
+    rc.add_argument("--type", choices=["open", "close", "week"], default=None,
+                    help="open = pre-session brief, close = post-session brief, week = weekly recap (last 14 days)")
     rc.add_argument("--last", default=None, metavar="Nh",
                     help="List all signals from the last N hours (e.g. --last 24h)")
     rc.add_argument("--dry-run", action="store_true", dest="dry_run",

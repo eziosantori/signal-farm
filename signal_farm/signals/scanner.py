@@ -33,6 +33,7 @@ def build_ticker_list(
     instruments: dict,
     watchlists: dict,
     asset_classes: list[str] | None = None,
+    watchlist_name: str | None = None,
 ) -> list[dict]:
     """
     Return a flat list of dicts, one per ticker in the active watchlists.
@@ -44,10 +45,27 @@ def build_ticker_list(
         description : human label
         best_variant: preferred variant ("A"/"B"/"C"), default "A"
         edge        : "strong"/"good"/"marginal"/"none"/None
-    """
-    result = []
 
+    When `watchlist_name` is given (e.g. "beta"), the named list from
+    watchlists["named_watchlists"][name] is used instead of the per-asset-class
+    lists.  `asset_classes` filter still applies on top of that.
+    """
+    # --- Named watchlist path ---
+    if watchlist_name:
+        named = (watchlists.get("named_watchlists") or {}).get(watchlist_name)
+        if named is None:
+            available = list((watchlists.get("named_watchlists") or {}).keys())
+            raise ValueError(
+                f"Named watchlist '{watchlist_name}' not found. "
+                f"Available: {available or '(none defined)'}"
+            )
+        return _build_from_named_list(named, instruments, asset_classes)
+
+    # --- Default path: iterate per asset class ---
+    result = []
     for asset_class, symbols in watchlists.items():
+        if asset_class == "named_watchlists":
+            continue
         if asset_classes and asset_class not in asset_classes:
             continue
 
@@ -77,6 +95,41 @@ def build_ticker_list(
                 "edge":         entry.get("edge"),
             })
 
+    return result
+
+
+def _build_from_named_list(
+    canonicals: list[str],
+    instruments: dict,
+    asset_classes: list[str] | None,
+) -> list[dict]:
+    """Resolve a flat list of canonical symbols against instruments.yaml."""
+    # Build a reverse map: canonical → (asset_class, entry)
+    reverse: dict[str, tuple[str, dict]] = {}
+    for section_key, section in instruments.items():
+        if not isinstance(section, dict):
+            continue
+        for symbol, entry in section.items():
+            if isinstance(entry, dict):
+                reverse[symbol] = (entry.get("asset_class", section_key), entry)
+
+    result = []
+    for canonical in canonicals:
+        if canonical not in reverse:
+            logger.warning("scanner: %s not found in instruments.yaml — skipping", canonical)
+            continue
+        asset_class, entry = reverse[canonical]
+        if asset_classes and asset_class not in asset_classes:
+            continue
+        yf_ticker = entry.get("yfinance") or canonical
+        result.append({
+            "canonical":    canonical,
+            "ticker":       yf_ticker,
+            "asset_class":  asset_class,
+            "description":  entry.get("description", canonical),
+            "best_variant": entry.get("best_variant", "A"),
+            "edge":         entry.get("edge"),
+        })
     return result
 
 
@@ -239,6 +292,8 @@ def scan_ticker(
         "ctx_regime":       row.get("ctx_regime"),
         "ctx_rsi":          row.get("ctx_rsi"),
         "ctx_roc_pct":      row.get("ctx_roc_pct"),
+        "ctx_atr_pct":      row.get("ctx_atr_pct"),
+        "ctx_rel_vol":      row.get("ctx_rel_vol"),
         "ctx_market_label": row.get("ctx_market_label"),
         "ctx_market_name":  row.get("ctx_market_name"),
         "ctx_market_roc":   row.get("ctx_market_roc"),
