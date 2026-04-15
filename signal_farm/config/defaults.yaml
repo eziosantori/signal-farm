@@ -1,0 +1,18 @@
+risk:
+  equity: 100000
+  risk_pct: 0.01
+  rr_ratio: 2.0
+
+director:
+  slope_threshold_factor: 0.0001
+  roc_threshold: 0.0
+
+signals:
+  sma_touch_tolerance: 0.001
+  pullback_lookback: 10
+  keltner_lookback: 15
+
+backtest:
+  default_period: "60d"
+  max_concurrent_positions: 5
+  atr_stop_mult: 1.5

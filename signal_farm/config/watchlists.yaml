@@ -1,0 +1,51 @@
+# Watchlists per asset class.
+# Symbols must match entries in instruments.yaml.
+# For backtest: use canonical Dukascopy symbols (XAUUSD, BTCUSD, EURUSD, US500)
+# For live signals via yfinance: use the yfinance field in instruments.yaml
+
+us_stocks:
+  - AAPL
+  - MSFT
+  - GOOGL
+  - AMZN
+  - NVDA
+  - META
+  - TSLA
+  - NFLX
+  - AMD
+  - QCOM
+
+indices_futures:
+  - US500      # S&P 500  (Dukascopy) / SPY proxy yfinance
+  - NAS100     # NASDAQ 100            / QQQ
+  - GER40      # DAX 40               / EWG
+  - UK100      # FTSE 100             / EWU
+
+precious_metals:
+  - XAUUSD     # Gold spot   (Dukascopy) / GLD proxy yfinance
+  - XAGUSD     # Silver spot            / SLV
+
+agricultural_commodities:
+  - BRENT      # Brent crude
+  - WTI        # WTI crude
+  - NATGAS     # Natural gas
+
+forex:
+  majors:
+    - EURUSD
+    - GBPUSD
+    - USDJPY
+    - USDCHF
+    - AUDUSD
+    - USDCAD
+    - NZDUSD
+  crosses:
+    - EURGBP
+    - EURJPY
+    - GBPJPY
+
+crypto:
+  - BTCUSD
+  - ETHUSD
+  - LTCUSD
+  - ADAUSD

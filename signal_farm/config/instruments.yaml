@@ -1,0 +1,408 @@
+# Instrument catalog — source of truth for all symbol mappings.
+#
+# Each entry defines:
+#   feed        : dukascopy-node feed ID (used for backtest via Dukascopy)
+#   asset_class : which profile in profiles.yaml applies
+#   description : human-readable name
+#   yfinance    : yfinance ticker (for live signal scanning, if available)
+#   ccxt        : ccxt market symbol (crypto only)
+#
+# Notes:
+#   - Metals and indices use CFD/spot via Dukascopy (24h/23h data)
+#   - US stocks use direct equity feed on Dukascopy (regular session)
+#   - ETF equivalents (GLD, SPY) are yfinance proxies only — not used for backtest
+
+# ---------------------------------------------------------------------------
+# Forex Majors
+# ---------------------------------------------------------------------------
+forex:
+  EURUSD:
+    feed: eurusd
+    asset_class: forex
+    description: "Euro / US Dollar"
+    yfinance: "EURUSD=X"
+
+  GBPUSD:
+    feed: gbpusd
+    asset_class: forex
+    description: "British Pound / US Dollar"
+    yfinance: "GBPUSD=X"
+
+  USDJPY:
+    feed: usdjpy
+    asset_class: forex
+    description: "US Dollar / Japanese Yen"
+    yfinance: "USDJPY=X"
+
+  USDCHF:
+    feed: usdchf
+    asset_class: forex
+    description: "US Dollar / Swiss Franc"
+    yfinance: "USDCHF=X"
+
+  AUDUSD:
+    feed: audusd
+    asset_class: forex
+    description: "Australian Dollar / US Dollar"
+    yfinance: "AUDUSD=X"
+
+  USDCAD:
+    feed: usdcad
+    asset_class: forex
+    description: "US Dollar / Canadian Dollar"
+    yfinance: "USDCAD=X"
+
+  NZDUSD:
+    feed: nzdusd
+    asset_class: forex
+    description: "New Zealand Dollar / US Dollar"
+    yfinance: "NZDUSD=X"
+
+# ---------------------------------------------------------------------------
+# Forex Crosses
+# ---------------------------------------------------------------------------
+  EURGBP:
+    feed: eurgbp
+    asset_class: forex
+    description: "Euro / British Pound"
+    yfinance: "EURGBP=X"
+
+  EURJPY:
+    feed: eurjpy
+    asset_class: forex
+    description: "Euro / Japanese Yen"
+    yfinance: "EURJPY=X"
+
+  GBPJPY:
+    feed: gbpjpy
+    asset_class: forex
+    description: "British Pound / Japanese Yen"
+    yfinance: "GBPJPY=X"
+
+  EURCHF:
+    feed: eurchf
+    asset_class: forex
+    description: "Euro / Swiss Franc"
+    yfinance: "EURCHF=X"
+
+  AUDJPY:
+    feed: audjpy
+    asset_class: forex
+    description: "Australian Dollar / Japanese Yen"
+    yfinance: "AUDJPY=X"
+
+# ---------------------------------------------------------------------------
+# Precious Metals (CFD/Spot — 24h/23h trading)
+# ---------------------------------------------------------------------------
+precious_metals:
+  XAUUSD:
+    feed: xauusd
+    asset_class: precious_metals
+    description: "Gold Spot / US Dollar"
+    yfinance: "GC=F"            # Gold futures ~23h, best proxy for spot gold
+    best_variant: B             # Sharpe 1.82 — Keltner breakout dominant on gold
+
+  XAGUSD:
+    feed: xagusd
+    asset_class: precious_metals
+    description: "Silver Spot / US Dollar"
+    yfinance: "SI=F"            # Silver futures
+    best_variant: B
+
+# ---------------------------------------------------------------------------
+# Equity Indices (CFD — ~23h trading)
+# ---------------------------------------------------------------------------
+indices_futures:
+  US500:
+    feed: usa500idxusd
+    asset_class: indices_futures
+    description: "S&P 500 Index"
+    yfinance: "ES=F"            # S&P 500 futures, ~23h
+    best_variant: A             # Sharpe 0.63 — moderate edge
+
+  US30:
+    feed: usa30idxusd
+    asset_class: indices_futures
+    description: "Dow Jones Industrial Average"
+    yfinance: "YM=F"            # Dow futures, ~23h
+    best_variant: C             # Sharpe 0.79
+
+  NAS100:
+    feed: usatechidxusd
+    asset_class: indices_futures
+    description: "NASDAQ 100 Index"
+    yfinance: "NQ=F"            # NASDAQ 100 futures, ~23h
+    best_variant: B             # Sharpe 0.86
+
+  GER40:
+    feed: deuidxeur
+    asset_class: indices_futures
+    description: "DAX 40 Index"
+    yfinance: "^GDAXI"          # DAX index, German session
+    best_variant: A             # Sharpe 1.40 — best index
+
+  UK100:
+    feed: gbridxgbp
+    asset_class: indices_futures
+    description: "FTSE 100 Index"
+    yfinance: "^FTSE"           # FTSE 100, UK session
+    best_variant: B             # not yet tested
+
+  JPN225:
+    feed: jpnidxjpy
+    asset_class: indices_futures
+    description: "Nikkei 225 Index"
+    yfinance: "^N225"           # Nikkei 225, Tokyo session
+    best_variant: B             # not yet tested
+
+  AUS200:
+    feed: ausidxaud
+    asset_class: indices_futures
+    description: "ASX 200 Index"
+    yfinance: "^AXJO"           # ASX 200, Sydney session
+    best_variant: B             # not yet tested
+
+# ---------------------------------------------------------------------------
+# Energies / Commodities
+# ---------------------------------------------------------------------------
+agricultural_commodities:
+  BRENT:
+    feed: brentcmdusd
+    asset_class: energies
+    description: "Brent Crude Oil (USD)"
+    yfinance: "BZ=F"            # Brent crude futures, ~23h
+    best_variant: A             # Sharpe 0.46 — weak edge, use with caution
+
+  WTI:
+    feed: lightcmdusd
+    asset_class: energies
+    description: "WTI Light Crude Oil (USD)"
+    yfinance: "CL=F"            # WTI crude futures, ~23h
+    best_variant: A             # Sharpe 0.40 — weak edge; B/C negative, avoid
+
+  NATGAS:
+    feed: gascmdusd
+    asset_class: energies
+    description: "Natural Gas (USD)"
+    yfinance: "NG=F"            # Natural gas futures
+    best_variant: A             # Sharpe 1.10 — best energy instrument
+
+  COPPER:
+    feed: coppercmdusd
+    asset_class: agricultural_commodities
+    description: "Copper (USD)"
+    yfinance: "HG=F"            # Copper futures (COMEX)
+    best_variant: B             # not yet tested
+
+  COCOA:
+    feed: cocoacmdusd
+    asset_class: agricultural_commodities
+    description: "Cocoa (USD)"
+    yfinance: "CC=F"            # Cocoa futures (ICE)
+    best_variant: C             # Sharpe 1.34 — PF 1.87, top soft commodity
+
+  COFFEE:
+    feed: coffeecmdusx
+    asset_class: agricultural_commodities
+    description: "Coffee (USD)"
+    yfinance: "KC=F"            # Coffee futures (ICE)
+    best_variant: C             # Sharpe 1.32 — PF 1.77
+
+  SOYBEAN:
+    feed: soybeancmdusx
+    asset_class: agricultural_commodities
+    description: "Soybeans (USD)"
+    yfinance: "ZS=F"            # Soybean futures (CBOT)
+    best_variant: B             # Sharpe 1.30 — PF 1.58, +41% 2y
+
+  SUGAR:
+    feed: sugarcmdusd
+    asset_class: agricultural_commodities
+    description: "Sugar No.11 (USD)"
+    yfinance: "SB=F"            # Sugar No.11 futures (ICE)
+    best_variant: A             # ONLY Variant A (PF 1.06); B/C strongly negative — avoid
+
+  COTTON:
+    feed: cottoncmdusx
+    asset_class: agricultural_commodities
+    description: "Cotton No.2 (USD)"
+    yfinance: "CT=F"            # Cotton No.2 futures (ICE)
+    best_variant: A             # ONLY Variant A (PF 1.05); B/C strongly negative — avoid
+
+  OJUICE:
+    feed: ojuicecmdusx
+    asset_class: agricultural_commodities
+    description: "Orange Juice (USD)"
+    yfinance: "OJ=F"            # OJ futures (ICE)
+    best_variant: A             # Sharpe 1.23 — but low liquidity, validate carefully
+
+# ---------------------------------------------------------------------------
+# US Stocks (regular session)
+# ---------------------------------------------------------------------------
+us_stocks:
+  # All stocks use Alpaca provider (2y 30m data) when ALPACA_API_KEY is set.
+  # Grid optimized on 2y Alpaca data — profile atr_stop_mult=2.0, rsi_tight=3 pre-applied.
+  # ✅ = positive edge found  ⚠️ = marginal  ❌ = no edge (monitor only)
+
+  AAPL:
+    feed: aaplususd
+    asset_class: us_stocks
+    description: "Apple Inc."
+    yfinance: "AAPL"
+    best_variant: A
+    edge: "none"          # ❌ Sharpe -0.22 on 2y — choppy range-bound, avoid
+    best_params: {atr_stop_mult: 1.5, min_score: 68, rsi_tightening: 0}
+
+  MSFT:
+    feed: msftususd
+    asset_class: us_stocks
+    description: "Microsoft Corp."
+    yfinance: "MSFT"
+    best_variant: A
+    edge: "strong"        # ✅ Sharpe 0.91 | PF 1.61 | +19.6% | 56 trades/2y
+    best_params: {atr_stop_mult: 2.0, min_score: 68, rsi_tightening: 3}
+
+  NVDA:
+    feed: nvdaususd
+    asset_class: us_stocks
+    description: "NVIDIA Corp."
+    yfinance: "NVDA"
+    best_variant: A
+    edge: "marginal"      # ⚠️ Sharpe 0.31 | PF 1.18 | +3.6% | 35 trades/2y
+    best_params: {atr_stop_mult: 2.5, min_score: 75, rsi_tightening: 3}
+
+  AMZN:
+    feed: amznususd
+    asset_class: us_stocks
+    description: "Amazon.com Inc."
+    yfinance: "AMZN"
+    best_variant: A
+    edge: "good"          # ✅ Sharpe 0.68 | PF 1.47 | +13.9% | 52 trades/2y
+    best_params: {atr_stop_mult: 2.0, min_score: 68, rsi_tightening: 3}
+
+  TSLA:
+    feed: tslaususd
+    asset_class: us_stocks
+    description: "Tesla Inc."
+    yfinance: "TSLA"
+    best_variant: A
+    edge: "strong"        # ✅ Sharpe 0.98 | PF 2.00 | +11.2% | 22 trades/2y
+    best_params: {atr_stop_mult: 2.5, min_score: 68, rsi_tightening: 6}
+
+  META:
+    feed: metususd
+    asset_class: us_stocks
+    description: "Meta Platforms Inc."
+    yfinance: "META"
+    best_variant: A
+    edge: "good"          # ✅ Sharpe 0.74 | PF 1.82 | +9.0% | 21 trades/2y
+    best_params: {atr_stop_mult: 1.5, min_score: 75, rsi_tightening: 3}
+
+  GOOGL:
+    feed: googlususd
+    asset_class: us_stocks
+    description: "Alphabet Inc."
+    yfinance: "GOOGL"
+    best_variant: A
+    edge: "none"          # ❌ Sharpe 0.03 | PF 1.01 — near breakeven, high DD
+    best_params: {atr_stop_mult: 1.5, min_score: 68, rsi_tightening: 0}
+
+  NFLX:
+    feed: nflxususd
+    asset_class: us_stocks
+    description: "Netflix Inc."
+    yfinance: "NFLX"
+
+  AMD:
+    feed: amdususd
+    asset_class: us_stocks
+    description: "Advanced Micro Devices"
+    yfinance: "AMD"
+
+  QCOM:
+    feed: qcomususd
+    asset_class: us_stocks
+    description: "Qualcomm Inc."
+    yfinance: "QCOM"
+
+  JPM:
+    feed: ~                          # not available on Dukascopy
+    asset_class: us_stocks
+    description: "JPMorgan Chase & Co."
+    yfinance: "JPM"
+
+  V:
+    feed: ~
+    asset_class: us_stocks
+    description: "Visa Inc."
+    yfinance: "V"
+
+  JNJ:
+    feed: ~
+    asset_class: us_stocks
+    description: "Johnson & Johnson"
+    yfinance: "JNJ"
+
+# ---------------------------------------------------------------------------
+# Crypto
+# ---------------------------------------------------------------------------
+crypto:
+  BTCUSD:
+    feed: btcusd
+    asset_class: crypto
+    description: "Bitcoin / US Dollar"
+    yfinance: "BTC-USD"
+    ccxt: "BTC/USDT"
+    best_variant: B           # ✅ Sharpe 1.07 | PF 1.51 | +44% | 143 trades/2y
+    best_params: {keltner_lookback: 10, atr_stop_mult: 1.5, min_score: 0, rsi_tightening: 0}
+
+  ETHUSD:
+    feed: ethusd
+    asset_class: crypto
+    description: "Ethereum / US Dollar"
+    yfinance: "ETH-USD"
+    ccxt: "ETH/USDT"
+    best_variant: B           # ⚠️ Sharpe 0.24 | PF 1.11 | +6% | choppy — monitor only
+    best_params: {keltner_lookback: 10, atr_stop_mult: 2.0, rsi_tightening: 3}
+
+  LTCUSD:
+    feed: ltcusd
+    asset_class: crypto
+    description: "Litecoin / US Dollar"
+    yfinance: "LTC-USD"
+    ccxt: "LTC/USDT"
+
+  SOLUSD:
+    feed: ~                          # not in Dukascopy catalog
+    asset_class: crypto
+    description: "Solana / US Dollar"
+    yfinance: "SOL-USD"
+    ccxt: "SOL/USDT"
+
+  ADAUSD:
+    feed: adausd
+    asset_class: crypto
+    description: "Cardano / US Dollar"
+    yfinance: "ADA-USD"
+    ccxt: "ADA/USDT"
+
+  BNBUSD:
+    feed: ~
+    asset_class: crypto
+    description: "BNB / US Dollar"
+    yfinance: "BNB-USD"
+    ccxt: "BNB/USDT"
+
+# ---------------------------------------------------------------------------
+# Timeframe mapping: signal-farm interval → dukascopy-node flag
+# ---------------------------------------------------------------------------
+timeframes:
+  "1m":  "m1"
+  "5m":  "m5"
+  "10m": "m10"
+  "15m": "m15"
+  "30m": "m30"
+  "1h":  "h1"
+  "4h":  "h4"
+  "1d":  "d1"
+  "1wk": "w1"

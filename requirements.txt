@@ -1,0 +1,9 @@
+yfinance>=0.2.36
+pandas>=2.0
+numpy>=1.26
+pyarrow>=14.0
+plotly>=5.20
+matplotlib>=3.8
+PyYAML>=6.0
+pytest>=7.0
+# Node.js + npx must be installed separately for DukascopyProvider

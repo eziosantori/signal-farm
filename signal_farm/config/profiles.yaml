@@ -1,0 +1,358 @@
+us_stocks:
+  levels: 2
+  allowed_directions: [LONG, SHORT]
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  executor:
+    interval: "30m"
+    period: "60d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:
+      sma_fast: 8
+      sma_slow: 21
+  session_filter:
+    enabled: true
+    start_et: "09:30"
+    end_et: "16:00"
+  rsi_period: 14
+  rsi_filter:
+    # Pre-applied rsi_tightening=3 (grid optimal across MSFT/META/AMZN/NVDA/TSLA)
+    # Zones narrowed by 3pt each side vs original defaults.
+    variant_a:
+      long:  [44, 56]   # was [41,59] — tighter pullback zone for quality
+      short: [44, 56]
+    variant_b:
+      long:  [54, 72]   # was [51,69] → +3 each side
+      short: [28, 52]
+  volume_scorer: true
+  pullback_lookback: 10
+  keltner_lookback: 15
+  sma_touch_tolerance: 0.001
+  min_score_threshold: 68   # 2y grid optimal (raise to 75 for NVDA individually)
+  max_concurrent_positions: 3  # reduced from 5 — fewer but higher quality concurrent
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 2.0           # 2y grid optimal — 1.5× too tight for 30m stock noise
+  market_context:
+    ticker: NAS100
+    asset_class: indices_futures
+    label: "NASDAQ"
+
+indices_futures:
+  levels: 3
+  allowed_directions: [LONG, SHORT]
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  filter:
+    interval: "4h"
+    period: "60d"
+    sma_fast: 10
+    sma_slow: 50
+  executor:
+    interval: "1h"
+    period: "60d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:
+      sma_fast: 8
+      sma_slow: 21
+  session_filter:
+    enabled: false
+  rsi_period: 14
+  rsi_filter:
+    variant_a:
+      long:  [38, 62]   # tightened by 3pt — moderate filter for indices
+      short: [38, 62]
+    variant_b:
+      long:  [48, 72]
+      short: [28, 52]
+  volume_scorer: true
+  pullback_lookback: 8    # grid: 8 optimal for GER40/US30
+  keltner_lookback: 10   # grid: 10 optimal for NAS100/US500 (was 15)
+  sma_touch_tolerance: 0.001
+  min_score_threshold: 55  # moderate filter — GER40 best with 0, NAS100 with 62
+  max_concurrent_positions: 3
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 1.5
+  market_context:
+    ticker: US500
+    asset_class: indices_futures
+    label: "S&P500"
+
+agricultural_commodities:
+  levels: 3
+  allowed_directions: [LONG, SHORT]
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  filter:
+    interval: "4h"
+    period: "60d"
+    sma_fast: 10
+    sma_slow: 50
+  executor:
+    interval: "1h"
+    period: "60d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:
+      sma_fast: 8
+      sma_slow: 21
+  session_filter:
+    enabled: false
+  rsi_period: 14
+  rsi_filter:
+    variant_a:
+      long:  [35, 65]   # keep defaults — COCOA/COFFEE best with rsi_tight=0
+      short: [35, 65]
+    variant_b:
+      long:  [45, 75]
+      short: [25, 55]
+  volume_scorer: true
+  pullback_lookback: 8    # grid: 8 optimal across NATGAS/COCOA/COFFEE (was 10)
+  keltner_lookback: 12   # grid: 12 optimal for soft commodities (was 15)
+  sma_touch_tolerance: 0.001
+  min_score_threshold: 0   # soft commodities best without score filter
+  max_concurrent_positions: 3
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 1.5
+  market_context:
+    ticker: BRENT
+    asset_class: energies
+    label: "BRENT"
+
+precious_metals:
+  levels: 3
+  allowed_directions: [LONG, SHORT]
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  filter:
+    interval: "4h"
+    period: "60d"
+    sma_fast: 10
+    sma_slow: 50
+  executor:
+    interval: "1h"
+    period: "60d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:
+      sma_fast: 8
+      sma_slow: 21
+  session_filter:
+    enabled: false
+  rsi_period: 14
+  rsi_filter:
+    variant_a:
+      long:  [35, 68]
+      short: [32, 65]
+    variant_b:
+      long:  [45, 72]   # gold can sustain high RSI in bull runs
+      short: [28, 55]
+  volume_scorer: true
+  pullback_lookback: 8    # grid: 8 optimal (was 10)
+  keltner_lookback: 15   # grid: 15 confirmed optimal for XAUUSD
+  sma_touch_tolerance: 0.001
+  min_score_threshold: 62  # grid: 62-68 range; 62 captures more good trades
+  max_concurrent_positions: 3
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 1.5
+  market_context:
+    ticker: XAUUSD
+    asset_class: precious_metals
+    label: "GOLD"
+    same_as_signal: true   # XAUUSD testing itself — use dir_* columns directly
+
+energies:
+  levels: 3
+  allowed_directions: [LONG, SHORT]
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  filter:
+    interval: "4h"
+    period: "60d"
+    sma_fast: 10
+    sma_slow: 50
+  executor:
+    interval: "1h"
+    period: "60d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:
+      sma_fast: 8
+      sma_slow: 21
+  session_filter:
+    enabled: false
+  rsi_period: 14
+  rsi_filter:
+    variant_a:
+      long:  [41, 59]   # tightened by 6pt — energies are volatile and noisy
+      short: [41, 59]
+    variant_b:
+      long:  [51, 69]
+      short: [31, 49]
+  volume_scorer: true
+  pullback_lookback: 8
+  keltner_lookback: 15
+  sma_touch_tolerance: 0.001
+  min_score_threshold: 62
+  max_concurrent_positions: 3
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 1.5
+  market_context:
+    ticker: BRENT
+    asset_class: energies
+    label: "BRENT"
+
+forex:
+  levels: 3
+  allowed_directions: [LONG, SHORT]
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  filter:
+    interval: "4h"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+  executor:
+    interval: "1h"
+    period: "200d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:
+      sma_fast: 8
+      sma_slow: 21
+  session_filter:
+    enabled: false       # forex trades 24/5
+  rsi_period: 14
+  rsi_filter:
+    variant_a:
+      long:  [38, 62]   # forex mean-reverts more — tighter zone
+      short: [38, 62]
+    variant_b:
+      long:  [48, 70]
+      short: [30, 52]
+  volume_scorer: false   # tick volume only — unreliable for forex
+  pullback_lookback: 10
+  keltner_lookback: 10   # grid: 10 optimal for EURUSD (was 15)
+  sma_touch_tolerance: 0.001
+  min_score_threshold: 68  # grid: 68 best for EURUSD-B
+  max_concurrent_positions: 4
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 1.5
+  market_context:
+    ticker: EURUSD
+    asset_class: forex
+    label: "EUR/USD"
+    same_as_signal: true   # when trading EURUSD itself — use dir_* columns
+
+crypto:
+  levels: 3
+  allowed_directions: [LONG]   # short side ha win rate < 25% nel campione; rivedere con dati più lunghi
+  director:
+    interval: "1d"
+    period: "200d"
+    sma_fast: 10
+    sma_slow: 50
+    roc_period: 10
+  filter:
+    interval: "4h"
+    period: "60d"
+    sma_fast: 10
+    sma_slow: 50
+  executor:
+    interval: "1h"
+    period: "60d"
+    atr_period: 14
+    keltner_ema: 20
+    keltner_atr: 10
+    keltner_mult: 1.5
+    long:
+      sma_fast: 10
+      sma_slow: 50
+    short:          # faster SMAs — crypto downtrends are sharp and brief
+      sma_fast: 7
+      sma_slow: 20
+  session_filter:
+    enabled: false
+  rsi_period: 14
+  rsi_filter:
+    variant_a:
+      long:  [35, 70]   # crypto can sustain higher RSI in bull runs
+      short: [30, 65]
+    variant_b:
+      long:  [45, 78]   # wider zone — momentum can extend longer in crypto
+      short: [22, 55]
+  volume_scorer: true
+  pullback_lookback: 8
+  keltner_lookback: 10   # 2y grid optimal for BTC-B/C (was 12 tuned on shorter data)
+  sma_touch_tolerance: 0.002
+  min_score_threshold: 0   # BTC best without score gate (all combos tied at Sharpe 1.07)
+  max_concurrent_positions: 3
+  max_per_sector: 2
+  rr_ratio: 2.0
+  atr_stop_mult: 1.5        # BTC: 1.5× optimal; ETH needs 2.0 (use per-instrument override)
+  market_context:
+    ticker: BTCUSD
+    asset_class: crypto
+    label: "BTC"
+    same_as_signal: true

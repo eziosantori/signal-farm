@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Env / secrets
+.env
+
+# Data caches (provider Parquet data — too large for git)
+.alpaca_data/
+.ccxt_data/
+.oanda_data/
+.dukascopy_data/
+.cache/
+
+# Backtest / output
+output/
+*.html
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local settings
+.claude/settings.local.json
