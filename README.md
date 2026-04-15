@@ -81,6 +81,81 @@ signal_farm/
 └── main.py          CLI entry point
 ```
 
+## Live Scanner & Telegram Alerts
+
+### Setup
+
+1. Copy `.env.example` to `.env` and fill in your credentials.
+
+2. **Telegram bot** (one-time setup):
+   - Open `@BotFather` on Telegram → `/newbot` → follow prompts → copy the token
+   - Search for your bot by name in Telegram → press **Start**
+   - Get your chat ID — visit in a browser (replace `<TOKEN>` with your token):
+     ```
+     https://api.telegram.org/bot<TOKEN>/getUpdates
+     ```
+     Find `"chat":{"id": 123456789}` in the JSON response.
+     If the result is empty, send any message to the bot first, then reload.
+   - Add both values to `.env`:
+     ```env
+     TELEGRAM_BOT_TOKEN=<token>
+     TELEGRAM_CHAT_ID=<chat_id>
+     ```
+
+3. **Preview a notification** (no message sent):
+   ```bash
+   cd signal_farm
+   python main.py scan --no-skip-closed --dry-run
+   ```
+
+### Scan Commands
+
+```bash
+cd signal_farm
+
+# Scan all open markets (respects trading hours per asset class)
+python main.py scan
+
+# Scan and send Telegram alerts for found signals
+python main.py scan --notify
+
+# Scan a specific asset class only
+python main.py scan --asset us_stocks --notify
+
+# Scan multiple asset classes
+python main.py scan --asset us_stocks,crypto --notify
+
+# Force scan even if market is closed
+python main.py scan --no-skip-closed --notify
+
+# Preview Telegram message format without sending
+python main.py scan --no-skip-closed --dry-run
+```
+
+### Windows Task Scheduler
+
+Create `run_scan.bat` in the project root and schedule it to run every hour:
+
+```bat
+@echo off
+cd /d D:\Repos\signal-farm\signal_farm
+D:\Repos\signal-farm\.venv\Scripts\python.exe main.py scan --notify
+```
+
+Recommended schedule: every 30 min for `us_stocks` during market hours, every hour for everything else.
+
+### Scan Hours (auto-skip closed markets)
+
+| Asset class | Scan window |
+|---|---|
+| `us_stocks` | Mon–Fri 09:30–16:00 ET |
+| `indices_futures` | Mon–Fri 00:00–22:00 UTC |
+| `precious_metals` | Mon–Fri 00:00–22:00 UTC |
+| `energies` | Mon–Fri 00:00–22:00 UTC |
+| `agricultural_commodities` | Mon–Fri 01:00–20:30 UTC |
+| `forex` | Mon–Fri 00:00–23:59 UTC |
+| `crypto` | 24/7 |
+
 ## Running Tests
 
 ```bash

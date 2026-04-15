@@ -13,6 +13,11 @@ import logging
 import os
 import sys
 
+# Force UTF-8 output on Windows (avoids cp1252 UnicodeEncodeError with box/score chars)
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Ensure signal_farm/ is on the path when run from project root
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -51,11 +56,20 @@ CONFIG_DIR = os.path.join(os.path.dirname(__file__), "config")
 
 
 def load_configs():
-    with open(os.path.join(CONFIG_DIR, "profiles.yaml")) as f:
+    with open(os.path.join(CONFIG_DIR, "profiles.yaml"), encoding="utf-8") as f:
         profiles = yaml.safe_load(f)
-    with open(os.path.join(CONFIG_DIR, "defaults.yaml")) as f:
+    with open(os.path.join(CONFIG_DIR, "defaults.yaml"), encoding="utf-8") as f:
         defaults = yaml.safe_load(f)
     return profiles, defaults
+
+
+def load_catalog():
+    """Load instruments.yaml and watchlists.yaml."""
+    with open(os.path.join(CONFIG_DIR, "instruments.yaml"), encoding="utf-8") as f:
+        instruments = yaml.safe_load(f)
+    with open(os.path.join(CONFIG_DIR, "watchlists.yaml"), encoding="utf-8") as f:
+        watchlists = yaml.safe_load(f)
+    return instruments, watchlists
 
 
 def _apply_direction_override(args, profiles):
@@ -347,6 +361,220 @@ def cmd_chart(args, profiles, defaults):
     print(f"Equity curve:  {equity_path}")
 
 
+def cmd_scan(args, profiles, defaults):
+    import time as _time
+    from datetime import datetime, timezone
+    from signals.scanner import build_ticker_list, is_market_open, scan_ticker
+
+    instruments, watchlists = load_catalog()
+
+    # Resolve asset class filter
+    asset_filter = None
+    if getattr(args, "asset", None):
+        asset_filter = [a.strip() for a in args.asset.split(",")]
+        for a in asset_filter:
+            if a not in profiles:
+                print(f"Error: unknown asset class '{a}'. Available: {', '.join(sorted(profiles))}")
+                sys.exit(1)
+
+    variant_override = getattr(args, "variant", None)
+    min_score        = getattr(args, "min_score", None)
+    skip_closed      = not getattr(args, "no_skip_closed", False)
+    output_fmt       = getattr(args, "output", "table")
+    period_override  = getattr(args, "period", None)
+
+    ticker_list = build_ticker_list(instruments, watchlists, asset_classes=asset_filter)
+    if not ticker_list:
+        print("No tickers to scan.")
+        sys.exit(0)
+
+    now_utc = datetime.now(tz=timezone.utc)
+
+    # Group by asset class to print section headers
+    from itertools import groupby
+    ticker_list.sort(key=lambda x: x["asset_class"])
+
+    results      = []
+    skipped_cls  = []
+    errors       = []
+    t0           = _time.time()
+
+    scanned_count = 0
+    for asset_class, group in groupby(ticker_list, key=lambda x: x["asset_class"]):
+        group = list(group)
+        profile = profiles[asset_class]
+
+        if skip_closed and not is_market_open(profile, now=now_utc):
+            skipped_cls.append(asset_class)
+            continue
+
+        exec_interval = profile.get("executor", {}).get("interval", "1h")
+
+        if output_fmt == "table":
+            status = "OPEN"
+            print(f"\n  {asset_class} (market {status} — {exec_interval} bars)")
+
+        for entry in group:
+            canonical   = entry["canonical"]
+            ticker      = entry["ticker"]         # yfinance ticker (live data)
+            variant     = variant_override or entry["best_variant"]
+            description = entry["description"]
+            scanned_count += 1
+
+            sig = scan_ticker(
+                canonical=canonical,
+                asset_class=asset_class,
+                variant=variant,
+                profiles=profiles,
+                defaults=defaults,
+                min_score=min_score,
+                period_override=period_override,
+                yfinance_ticker=ticker,
+            )
+
+            if sig is None:
+                continue
+
+            sig["description"]  = description
+            sig["variant_used"] = variant
+            results.append(sig)
+
+            if output_fmt == "table":
+                _print_scan_row(sig)
+
+    elapsed = _time.time() - t0
+
+    if output_fmt == "json":
+        import json as _json
+        out = []
+        for s in results:
+            row = {k: (v.isoformat() if isinstance(v, pd.Timestamp) else v) for k, v in s.items()}
+            out.append(row)
+        print(_json.dumps(out, indent=2))
+        return
+
+    # Table footer
+    if output_fmt == "table":
+        print(f"\n{'='*60}")
+        ts = now_utc.strftime("%Y-%m-%d %H:%M UTC")
+        print(f"  Scan completed: {ts}")
+        print(f"  Tickers scanned: {scanned_count} | Signals found: {len(results)} | {elapsed:.1f}s")
+        if skipped_cls:
+            print(f"  Skipped (market closed): {', '.join(skipped_cls)}")
+        if not results:
+            print("  No active signals.")
+        print(f"{'='*60}\n")
+
+    # Telegram notification
+    notify    = getattr(args, "notify", False)
+    dry_run   = getattr(args, "dry_run", False)
+    if (notify or dry_run) and results:
+        from notifier import send_signals
+        sent = send_signals(results, dry_run=dry_run)
+        if output_fmt == "table":
+            label = "DRY RUN" if dry_run else "Telegram"
+            print(f"  [{label}] {sent}/{len(results)} alerts sent.\n")
+
+
+def _print_scan_row(sig: dict):
+    """Print one scan result as a compact card."""
+    def _f(v, fmt=".4f"):
+        if v is None or (isinstance(v, float) and v != v):
+            return "N/A"
+        try:
+            return format(v, fmt)
+        except Exception:
+            return str(v)
+
+    direction = sig.get("direction", "—")
+    variant   = sig.get("variant_used", sig.get("variant", "?"))
+    score     = sig.get("signal_score")
+    score_s   = f"{score:.0f}" if score == score and score is not None else "N/A"
+    bars_ago  = sig.get("bars_ago", 0)
+    sig_time  = sig.get("signal_time")
+    time_s    = sig_time.strftime("%Y-%m-%d %H:%M") if sig_time else "—"
+    ctx_label = sig.get("ctx_trend_label") or "—"
+    mkt_name  = sig.get("ctx_market_name") or ""
+    mkt_lbl   = sig.get("ctx_market_label") or ""
+
+    arrow = "^" if direction == "LONG" else "v" if direction == "SHORT" else "-"
+
+    print(
+        f"    {sig['canonical']:<12} {arrow} {direction:<5}  V:{variant}  "
+        f"Score:{score_s:>4}  Entry:{_f(sig.get('entry_price')):>12}  "
+        f"Stop:{_f(sig.get('stop')):>12}  T:{_f(sig.get('target')):>12}  "
+        f"[{bars_ago}bar ago @ {time_s}]"
+    )
+    ctx_parts = [ctx_label]
+    if mkt_name and mkt_lbl:
+        ctx_parts.append(f"{mkt_name}: {mkt_lbl}")
+    print(f"    {'':12}   {'':5}         {'context: ' + ' | '.join(ctx_parts)}")
+
+
+def cmd_recap(args):
+    from recapper import load_history, format_history_list, format_open_brief, format_close_brief
+
+    recap_type = getattr(args, "type", None)
+    last_str   = getattr(args, "last", None)
+    dry_run    = getattr(args, "dry_run", False)
+
+    # Determine which signals to load
+    if last_str:
+        hours = _parse_hours(last_str)
+        signals = load_history(hours=hours)
+        message = format_history_list(signals)
+    elif recap_type == "open":
+        signals = load_history(hours=24)
+        message = format_open_brief(signals)
+    elif recap_type == "close":
+        signals = load_history(hours=24)
+        message = format_close_brief(signals)
+    else:
+        print("Error: specify --type open|close or --last <Nh>")
+        sys.exit(1)
+
+    if dry_run:
+        # Strip HTML tags for terminal readability
+        import re
+        plain = re.sub(r"<[^>]+>", "", message)
+        print("\n── RECAP DRY RUN ────────────────────────────")
+        print(plain)
+        print("─────────────────────────────────────────────\n")
+        return
+
+    # Send via Telegram
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+
+    if not token or not chat_id:
+        print("Error: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set.")
+        print("Use --dry-run to preview without sending.")
+        sys.exit(1)
+
+    from notifier import _send_telegram
+    ok = _send_telegram(token, chat_id, message)
+    if ok:
+        print("Recap sent successfully.")
+    else:
+        print("Error: failed to send recap. Check logs.")
+        sys.exit(1)
+
+
+def _parse_hours(last_str: str) -> float:
+    """Parse strings like '24h', '2h', '48h' into a float number of hours."""
+    last_str = last_str.strip().lower()
+    if last_str.endswith("h"):
+        try:
+            return float(last_str[:-1])
+        except ValueError:
+            pass
+    try:
+        return float(last_str)
+    except ValueError:
+        print(f"Error: cannot parse --last value '{last_str}'. Use format like '24h' or '48h'.")
+        sys.exit(1)
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="main.py",
@@ -389,6 +617,34 @@ def build_parser():
     ch.add_argument("--variant", required=True, choices=["A", "B", "C"])
     ch.add_argument("--ticker", required=True)
 
+    # ── scan ──
+    sc = sub.add_parser("scan", help="Scan active watchlist for current signals")
+    sc.add_argument("--asset", default=None,
+                    help="Comma-separated asset class(es) to scan (default: all open markets)")
+    sc.add_argument("--variant", default=None, choices=["A", "B", "C"],
+                    help="Override best_variant for all tickers (default: per-instrument best_variant)")
+    sc.add_argument("--min-score", type=float, default=None, dest="min_score",
+                    help="Minimum signal score (overrides profile default)")
+    sc.add_argument("--no-skip-closed", action="store_true", dest="no_skip_closed",
+                    help="Scan all asset classes even if market is closed")
+    sc.add_argument("--period", default=None,
+                    help="Data period override for all fetches (e.g. 60d)")
+    sc.add_argument("--output", choices=["table", "json"], default="table")
+    sc.add_argument("--notify", action="store_true",
+                    help="Send Telegram alerts for found signals (requires TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env)")
+    sc.add_argument("--dry-run", action="store_true", dest="dry_run",
+                    help="Print formatted Telegram messages without sending (for testing)")
+    sc.add_argument("--verbose", action="store_true", help="Enable debug logging")
+
+    # ── recap ──
+    rc = sub.add_parser("recap", help="Send or preview a session recap from signal history")
+    rc.add_argument("--type", choices=["open", "close"], default=None,
+                    help="open = pre-session brief, close = post-session brief")
+    rc.add_argument("--last", default=None, metavar="Nh",
+                    help="List all signals from the last N hours (e.g. --last 24h)")
+    rc.add_argument("--dry-run", action="store_true", dest="dry_run",
+                    help="Preview the recap message without sending it to Telegram")
+
     return parser
 
 
@@ -407,6 +663,10 @@ def main():
         cmd_compare(args, profiles, defaults)
     elif args.command == "chart":
         cmd_chart(args, profiles, defaults)
+    elif args.command == "scan":
+        cmd_scan(args, profiles, defaults)
+    elif args.command == "recap":
+        cmd_recap(args)
 
 
 if __name__ == "__main__":

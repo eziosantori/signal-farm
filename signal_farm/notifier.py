@@ -1,0 +1,290 @@
+"""
+Telegram notifier for Signal Farm.
+
+Sends a formatted alert card for each new signal via the Telegram Bot API.
+Deduplicates: the same (ticker, direction, signal_time) is only sent once per
+DEDUP_TTL_HOURS window, using a local state file.
+
+Configuration (from .env or environment):
+    TELEGRAM_BOT_TOKEN  — bot token from @BotFather
+    TELEGRAM_CHAT_ID    — chat / channel ID to send messages to
+    TELEGRAM_STATE_FILE — path to dedup state file (default: .signal_farm_state.json)
+
+Usage
+-----
+    from notifier import send_signals
+    send_signals(list_of_signal_dicts)
+
+    # Or from CLI:
+    python main.py scan --notify
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+from datetime import datetime, timezone, timedelta
+from typing import Any
+from urllib import request, error as urllib_error
+
+logger = logging.getLogger(__name__)
+
+DEDUP_TTL_HOURS = 12
+
+_TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
+
+_DIRECTION_ICON = {"LONG": "\U0001f7e2", "SHORT": "\U0001f534"}   # 🟢 🔴
+_DIRECTION_ARROW = {"LONG": "\u2197", "SHORT": "\u2198"}           # ↗ ↘
+
+
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
+def send_signals(signals: list[dict[str, Any]], dry_run: bool = False) -> int:
+    """
+    Send Telegram alerts for each signal in `signals`.
+
+    Skips signals already sent within DEDUP_TTL_HOURS.
+    Returns number of messages actually sent.
+    """
+    if not signals:
+        return 0
+
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+
+    if not dry_run and (not token or not chat_id):
+        logger.warning("notifier: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping")
+        return 0
+
+    state = _load_state()
+    sent  = 0
+
+    for sig in signals:
+        key = _dedup_key(sig)
+        if _is_duplicate(key, state):
+            logger.debug("notifier: skipping duplicate signal %s", key)
+            continue
+
+        message = format_signal_message(sig)
+
+        if dry_run:
+            print("── DRY RUN ──────────────────────────────")
+            print(message)
+            print("─────────────────────────────────────────")
+            sent += 1
+            # dry-run does NOT update state — allows real --notify to still send
+            continue
+        else:
+            success = _send_telegram(token, chat_id, message)
+            if not success:
+                continue  # don't mark as sent if delivery failed
+
+        state[key] = datetime.now(tz=timezone.utc).isoformat()
+        sent += 1
+
+        # Persist full signal payload to history (skip in dry-run — already handled above)
+        try:
+            from recapper import append_to_history
+            append_to_history(sig)
+        except Exception as exc:
+            logger.warning("notifier: could not append to history: %s", exc)
+
+    _save_state(state)
+    return sent
+
+
+# ---------------------------------------------------------------------------
+# Message formatting  (pure — easy to test)
+# ---------------------------------------------------------------------------
+
+def format_signal_message(sig: dict[str, Any]) -> str:
+    """
+    Render a signal dict as an HTML-formatted Telegram message.
+    Uses HTML parse_mode (safer than MarkdownV2 with special chars in prices).
+    """
+    canonical   = sig.get("canonical", "?")
+    description = sig.get("description", canonical)
+    asset_class = sig.get("asset_class", "")
+    direction   = sig.get("direction", "?")
+    variant     = sig.get("variant_used") or sig.get("variant", "?")
+    score       = sig.get("signal_score")
+    bars_ago    = sig.get("bars_ago", 0)
+    sig_time    = sig.get("signal_time")
+
+    entry  = sig.get("entry_price")
+    stop   = sig.get("stop")
+    target = sig.get("target")
+    rr     = sig.get("rr")
+
+    ctx_trend  = sig.get("ctx_trend_label") or "—"
+    ctx_regime = sig.get("ctx_regime") or ""
+    ctx_rsi    = sig.get("ctx_rsi")
+    ctx_roc    = sig.get("ctx_roc_pct")
+    mkt_name   = sig.get("ctx_market_name") or ""
+    mkt_label  = sig.get("ctx_market_label") or ""
+    mkt_roc    = sig.get("ctx_market_roc")
+
+    icon  = _DIRECTION_ICON.get(direction, "\U0001f7e1")   # 🟡 fallback
+    arrow = _DIRECTION_ARROW.get(direction, "\u2192")
+
+    def _p(v, fmt=".4f", fallback="N/A"):
+        if v is None or (isinstance(v, float) and v != v):
+            return fallback
+        try:
+            return format(v, fmt)
+        except Exception:
+            return str(v)
+
+    score_str = f"{score:.0f}/100" if score is not None and score == score else "N/A"
+
+    # Stop / target distance as %
+    if entry and stop and entry != 0:
+        stop_pct  = f"({(stop - entry) / entry * 100:+.1f}%)"
+        tgt_pct   = f"({(target - entry) / entry * 100:+.1f}%)" if target else ""
+    else:
+        stop_pct = tgt_pct = ""
+
+    time_str = (
+        sig_time.strftime("%Y-%m-%d %H:%M UTC")
+        if isinstance(sig_time, datetime)
+        else (str(sig_time)[:16] if sig_time else "—")
+    )
+    bars_str = f"({bars_ago} bar{'s' if bars_ago != 1 else ''} ago)" if bars_ago else ""
+
+    lines = [
+        f"\U0001f514 <b>SIGNAL FARM</b>",
+        "\u2501" * 22,
+        f"{icon} <b>{direction} {arrow} {description}</b>",
+        f"<i>{asset_class} | Variant {variant} | Score {score_str}</i>",
+        "",
+        f"\U0001f4b0 Entry:   <code>{_p(entry)}</code>",
+        f"\U0001f6d1 Stop:    <code>{_p(stop)}</code>  {stop_pct}",
+        f"\U0001f3af Target:  <code>{_p(target)}</code>  {tgt_pct}",
+        f"\U0001f4ca R:R {_p(rr, '.1f')}",
+        "",
+    ]
+
+    # Context block
+    ctx_parts = []
+    if ctx_trend and ctx_trend != "—":
+        roc_s = f" ROC {ctx_roc:+.1f}%" if ctx_roc is not None and ctx_roc == ctx_roc else ""
+        ctx_parts.append(f"Trend: {ctx_trend}{roc_s}")
+    if ctx_regime:
+        ctx_parts.append(f"Regime: {ctx_regime}")
+    if ctx_rsi is not None and ctx_rsi == ctx_rsi:
+        ctx_parts.append(f"RSI {ctx_rsi:.1f}")
+    if mkt_name and mkt_label:
+        mkt_roc_s = f" ({mkt_roc * 100:+.1f}%)" if mkt_roc is not None and mkt_roc == mkt_roc else ""
+        ctx_parts.append(f"{mkt_name}: {mkt_label}{mkt_roc_s}")
+
+    if ctx_parts:
+        lines.append("\U0001f4c8 <b>Context</b>")
+        lines.extend(f"  {p}" for p in ctx_parts)
+        lines.append("")
+
+    lines.append(f"\u23f0 {time_str}  {bars_str}")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Deduplication
+# ---------------------------------------------------------------------------
+
+def _dedup_key(sig: dict) -> str:
+    canonical  = sig.get("canonical", "")
+    direction  = sig.get("direction", "")
+    sig_time   = sig.get("signal_time")
+    time_part  = sig_time.isoformat() if isinstance(sig_time, datetime) else str(sig_time)
+    return f"{canonical}_{direction}_{time_part}"
+
+
+def _is_duplicate(key: str, state: dict) -> bool:
+    sent_at_s = state.get(key)
+    if not sent_at_s:
+        return False
+    try:
+        sent_at = datetime.fromisoformat(sent_at_s)
+        if sent_at.tzinfo is None:
+            sent_at = sent_at.replace(tzinfo=timezone.utc)
+        age = datetime.now(tz=timezone.utc) - sent_at
+        return age < timedelta(hours=DEDUP_TTL_HOURS)
+    except Exception:
+        return False
+
+
+def _state_file_path() -> str:
+    return os.environ.get(
+        "TELEGRAM_STATE_FILE",
+        os.path.join(os.path.dirname(__file__), "..", ".signal_farm_state.json"),
+    )
+
+
+def _load_state() -> dict:
+    path = _state_file_path()
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_state(state: dict) -> None:
+    path = _state_file_path()
+    # Prune entries older than 2× TTL to keep the file small
+    cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=DEDUP_TTL_HOURS * 2)
+    pruned = {}
+    for k, v in state.items():
+        try:
+            ts = datetime.fromisoformat(v)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts > cutoff:
+                pruned[k] = v
+        except Exception:
+            pass
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(pruned, f, indent=2)
+    except Exception as exc:
+        logger.warning("notifier: could not save state file: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# HTTP delivery
+# ---------------------------------------------------------------------------
+
+def _send_telegram(token: str, chat_id: str, text: str) -> bool:
+    """POST a message to Telegram. Returns True on success."""
+    url = _TELEGRAM_API.format(token=token)
+    payload = json.dumps({
+        "chat_id":    chat_id,
+        "text":       text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }).encode("utf-8")
+
+    req = request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=10) as resp:
+            body = json.loads(resp.read())
+            if not body.get("ok"):
+                logger.warning("notifier: Telegram API error: %s", body)
+                return False
+            return True
+    except urllib_error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        logger.warning("notifier: HTTP %s — %s", exc.code, body)
+        return False
+    except Exception as exc:
+        logger.warning("notifier: delivery failed: %s", exc)
+        return False

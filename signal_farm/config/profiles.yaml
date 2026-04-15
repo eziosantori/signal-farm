@@ -1,6 +1,11 @@
 us_stocks:
   levels: 2
   allowed_directions: [LONG, SHORT]
+  scan_hours:
+    timezone: "US/Eastern"
+    weekdays: [0,1,2,3,4]   # Mon–Fri
+    start: "09:30"
+    end: "16:00"
   director:
     interval: "1d"
     period: "200d"
@@ -51,6 +56,11 @@ us_stocks:
 indices_futures:
   levels: 3
   allowed_directions: [LONG, SHORT]
+  scan_hours:
+    timezone: "UTC"
+    weekdays: [0,1,2,3,4]   # Mon–Fri; ~23h session — broad window covers all global indices
+    start: "00:00"
+    end: "22:00"
   director:
     interval: "1d"
     period: "200d"
@@ -102,6 +112,11 @@ indices_futures:
 agricultural_commodities:
   levels: 3
   allowed_directions: [LONG, SHORT]
+  scan_hours:
+    timezone: "UTC"
+    weekdays: [0,1,2,3,4]   # Mon–Fri; CME Globex ~17h electronic session
+    start: "01:00"
+    end: "20:30"
   director:
     interval: "1d"
     period: "200d"
@@ -153,6 +168,11 @@ agricultural_commodities:
 precious_metals:
   levels: 3
   allowed_directions: [LONG, SHORT]
+  scan_hours:
+    timezone: "UTC"
+    weekdays: [0,1,2,3,4]   # Mon–Fri; COMEX Globex ~23h
+    start: "00:00"
+    end: "22:00"
   director:
     interval: "1d"
     period: "200d"
@@ -205,6 +225,11 @@ precious_metals:
 energies:
   levels: 3
   allowed_directions: [LONG, SHORT]
+  scan_hours:
+    timezone: "UTC"
+    weekdays: [0,1,2,3,4]   # Mon–Fri; ~23h CME Globex
+    start: "00:00"
+    end: "22:00"
   director:
     interval: "1d"
     period: "200d"
@@ -256,6 +281,11 @@ energies:
 forex:
   levels: 3
   allowed_directions: [LONG, SHORT]
+  scan_hours:
+    timezone: "UTC"
+    weekdays: [0,1,2,3,4]   # Mon–Fri; forex is 24/5 — Sun 22:00 open covered on Mon scan
+    start: "00:00"
+    end: "23:59"
   director:
     interval: "1d"
     period: "200d"
@@ -307,7 +337,9 @@ forex:
 
 crypto:
   levels: 3
-  allowed_directions: [LONG]   # short side ha win rate < 25% nel campione; rivedere con dati più lunghi
+  allowed_directions: [LONG]
+  scan_hours:
+    always_open: true   # 24/7   # short side ha win rate < 25% nel campione; rivedere con dati più lunghi
   director:
     interval: "1d"
     period: "200d"
