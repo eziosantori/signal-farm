@@ -50,7 +50,7 @@ us_stocks:
   rr_ratio: 2.0
   atr_stop_mult: 2.0           # 2y grid optimal — 1.5× too tight for 30m stock noise
   market_context:
-    ticker: NAS100
+    ticker: "NQ=F"
     asset_class: indices_futures
     label: "NASDAQ"
 
@@ -107,7 +107,7 @@ indices_futures:
   rr_ratio: 2.0
   atr_stop_mult: 1.5
   market_context:
-    ticker: US500
+    ticker: "^GSPC"
     asset_class: indices_futures
     label: "S&P500"
 
@@ -340,6 +340,7 @@ forex:
 crypto:
   levels: 3
   allowed_directions: [LONG]
+  ecosystem_monitor: true   # v0.3: NAS100 breadth alignment only (no VIX/sector)
   scan_hours:
     always_open: true   # 24/7   # short side ha win rate < 25% nel campione; rivedere con dati più lunghi
   director:

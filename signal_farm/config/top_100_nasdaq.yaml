@@ -1,0 +1,115 @@
+# NASDAQ-100 component snapshot — update weekly (or when index rebalances).
+# Used by ecosystem_monitor.compute_nas100_alignment() to gauge breadth.
+# Source: NASDAQ (https://www.nasdaq.com/market-activity/quotes/nasdaq-ndx-index)
+# last_updated: "2025-04-16"
+
+symbols:
+  # Mega-cap tech
+  - AAPL
+  - MSFT
+  - NVDA
+  - AMZN
+  - META
+  - TSLA
+  - GOOGL
+  - GOOG
+  - AVGO
+  - COST
+
+  # Consumer / Media
+  - NFLX
+  - TMUS
+  - SBUX
+  - ABNB
+  - MELI
+  - PYPL
+  - CHTR
+  - MTCH
+
+  # Semiconductors
+  - AMD
+  - QCOM
+  - AMAT
+  - MU
+  - LRCX
+  - KLAC
+  - ADI
+  - NXPI
+  - "ON"
+  - MCHP
+  - MRVL
+
+  # Software & Cloud
+  - ADBE
+  - INTU
+  - CDNS
+  - SNPS
+  - WDAY
+  - PANW
+  - CRWD
+  - FTNT
+  - ZS
+  - DDOG
+  - TEAM
+  - ROP
+  - AXON
+
+  # Enterprise / Legacy Tech
+  - CSCO
+  - TXN
+  - ADI
+
+  # Healthcare & Biotech
+  - REGN
+  - ISRG
+  - DXCM
+  - IDXX
+  - BIIB
+  - VRTX
+  - GILD
+  - MRNA
+  - GEHC
+
+  # Industrials / Diversified
+  - LIN
+  - CSX
+  - PCAR
+  - ODFL
+  - CPRT
+  - VRSK
+  - CTAS
+  - ADP
+  - PAYX
+  - FAST
+
+  # Consumer Staples / Food
+  - PEP
+  - MDLZ
+  - KDP
+  - MNST
+  - KHC
+
+  # Retail
+  - ORLY
+  - ROST
+  - DLTR
+  - CTSH
+
+  # Utilities / Energy
+  - EXC
+  - CEG
+  - XEL
+
+  # Other large caps
+  - FANG
+  - AZN
+  - PDD
+  - ZM
+  - CDW
+  - EA
+  - TTD
+  - CSGP
+  - GFS
+
+last_updated: "2025-04-16"
+refresh_interval_days: 7

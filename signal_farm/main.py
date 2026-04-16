@@ -514,10 +514,12 @@ def cmd_scan(args, profiles, defaults):
 
             # Attach ecosystem state to signal dict for notifier + history
             if eco_state is not None:
-                sig["ecosystem_label"]        = eco_state.label
-                sig["ecosystem_multiplier"]   = eco_state.size_multiplier
-                sig["ecosystem_vix"]          = eco_state.vix_level
-                sig["ecosystem_sector_score"] = eco_state.sector_score
+                sig["ecosystem_label"]          = eco_state.label
+                sig["ecosystem_multiplier"]     = eco_state.size_multiplier
+                sig["ecosystem_vix"]            = eco_state.vix_level
+                sig["ecosystem_sector_score"]   = eco_state.sector_score
+                sig["ecosystem_nas100_score"]   = eco_state.nas100_score
+                sig["ecosystem_nas100_alignment"] = eco_state.nas100_alignment
 
             results.append(sig)
 

@@ -73,7 +73,7 @@ def score_signals_detailed(
     ctx_rsi           : executor RSI14 value (e.g. 56.2)
     ctx_rel_vol       : relative volume (e.g. 1.8 = 80% above avg)
     ctx_atr_pct       : ATR14 as % of price (e.g. 0.74)
-    ctx_regime        : TRENDING / RANGING / VOLATILE / DEAD
+    ctx_regime        : TRENDING / RANGING / VOLATILE / QUIET
     ctx_setup_bars    : prior aligned bars (depth_ok sustained)
 
     Returns
@@ -112,7 +112,7 @@ def score_signals_detailed(
     ctx_regime = pd.Series(
         np.select(
             [pct < 0.10, pct <= 0.50, pct <= 0.75],
-            ["DEAD", "RANGING", "TRENDING"],
+            ["QUIET", "RANGING", "TRENDING"],
             default="VOLATILE",
         ),
         index=aligned_df.index,
