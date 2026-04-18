@@ -99,11 +99,19 @@ def build_ticker_list(
 
 
 def _build_from_named_list(
-    canonicals: list[str],
+    canonicals: list,
     instruments: dict,
     asset_classes: list[str] | None,
 ) -> list[dict]:
-    """Resolve a flat list of canonical symbols against instruments.yaml."""
+    """Resolve a flat list of canonical symbols against instruments.yaml.
+
+    Each entry can be either:
+    - a plain string ``"MSFT"``  → uses best_variant from instruments.yaml
+    - a dict ``{"canonical": "MSFT", "variant": "B"}``  → explicit variant override
+
+    This allows a single ticker to appear multiple times with different variants
+    (e.g. MSFT scanned with both Pullback/A and Breakout/B).
+    """
     # Build a reverse map: canonical → (asset_class, entry)
     reverse: dict[str, tuple[str, dict]] = {}
     for section_key, section in instruments.items():
@@ -114,7 +122,15 @@ def _build_from_named_list(
                 reverse[symbol] = (entry.get("asset_class", section_key), entry)
 
     result = []
-    for canonical in canonicals:
+    for item in canonicals:
+        # Resolve canonical symbol and optional variant override
+        if isinstance(item, dict):
+            canonical = item.get("canonical", "")
+            variant_override = item.get("variant")
+        else:
+            canonical = str(item)
+            variant_override = None
+
         if canonical not in reverse:
             logger.warning("scanner: %s not found in instruments.yaml — skipping", canonical)
             continue
@@ -127,7 +143,7 @@ def _build_from_named_list(
             "ticker":       yf_ticker,
             "asset_class":  asset_class,
             "description":  entry.get("description", canonical),
-            "best_variant": entry.get("best_variant", "A"),
+            "best_variant": variant_override or entry.get("best_variant", "A"),
             "edge":         entry.get("edge"),
         })
     return result

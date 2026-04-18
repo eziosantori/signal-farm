@@ -56,10 +56,13 @@ crypto:
 # ---------------------------------------------------------------------------
 named_watchlists:
   beta:
-    # MAG7 (esclusi AAPL ❌ e GOOGL ❌ — no edge nei backtest)
-    - MSFT    # ✅ Sharpe 0.91
+    # MAG7 — Variant A (Pullback) per tutti, Variant B (Breakout) per i ticker con edge
+    - MSFT                              # ✅ Variant A Pullback (Sharpe 0.91)
+    - {canonical: MSFT, variant: B}     # ✅ Variant B Breakout (Sharpe 1.17 LONG)
+    - META                              # ✅ Variant A Pullback (Sharpe 0.74)
+    - {canonical: META, variant: B}     # ✅ Variant B Breakout (Sharpe 2.20 LONG)
+    - {canonical: GOOGL, variant: B}    # ✅ Variant B Breakout only (Sharpe 1.93 LONG)
     - TSLA    # ✅ Sharpe 0.98
-    - META    # ✅ Sharpe 0.74
     - AMZN    # ✅ Sharpe 0.68
     - NVDA    # ⚠️ Sharpe 0.31 — marginal, incluso per il beta
     # Indici

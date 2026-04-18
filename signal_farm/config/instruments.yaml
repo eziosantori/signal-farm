@@ -325,8 +325,8 @@ us_stocks:
     asset_class: us_stocks
     description: "Alphabet Inc."
     yfinance: "GOOGL"
-    best_variant: A
-    edge: "none"          # ❌ Sharpe 0.03 | PF 1.01 — near breakeven, high DD
+    best_variant: B       # ✅ Variant B LONG: Sharpe 1.93 | PF 2.79 | +3.53% (6 trades/2y)
+    edge: "good"          # Variant A no edge; Variant B LONG strong in bull markets
     best_params: {atr_stop_mult: 1.5, min_score: 68, rsi_tightening: 0}
 
   NFLX:

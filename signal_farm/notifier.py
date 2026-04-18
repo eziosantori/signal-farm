@@ -36,6 +36,8 @@ _TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 _DIRECTION_ICON = {"LONG": "\U0001f7e2", "SHORT": "\U0001f534"}   # 🟢 🔴
 _DIRECTION_ARROW = {"LONG": "\u2197", "SHORT": "\u2198"}           # ↗ ↘
 
+_VARIANT_LABELS = {"A": "Pullback", "B": "Breakout", "C": "Hybrid"}
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -170,7 +172,7 @@ def format_signal_message(sig: dict[str, Any]) -> str:
         f"\U0001f514 <b>SIGNAL FARM</b>",
         "\u2501" * 22,
         f"{icon} <b>{direction} {arrow} {description}</b>",
-        f"<i>{asset_class} | Variant {variant} | Score {score_str}</i>",
+        f"<i>{asset_class} | {_VARIANT_LABELS.get(variant, variant)} | Score {score_str}</i>",
         "",
         f"\U0001f4b0 Entry:   <code>{_p(entry)}</code>",
         f"\U0001f6d1 Stop:    <code>{_p(stop)}</code>  {stop_pct}",
@@ -249,9 +251,10 @@ def format_signal_message(sig: dict[str, Any]) -> str:
 def _dedup_key(sig: dict) -> str:
     canonical  = sig.get("canonical", "")
     direction  = sig.get("direction", "")
+    variant    = sig.get("variant_used") or sig.get("variant", "")
     sig_time   = sig.get("signal_time")
     time_part  = sig_time.isoformat() if isinstance(sig_time, datetime) else str(sig_time)
-    return f"{canonical}_{direction}_{time_part}"
+    return f"{canonical}_{direction}_{variant}_{time_part}"
 
 
 def _is_duplicate(key: str, state: dict) -> bool:
