@@ -20,6 +20,9 @@ set LOG_FILE=%LOG_DIR%\scan_%date:~-4,4%%date:~-7,2%%date:~0,2%.log
 echo. >> "%LOG_FILE%"
 echo [%date% %time%] === SCAN START === >> "%LOG_FILE%"
 
+:: Attiva il virtual environment
+call "%~dp0..\.venv\Scripts\activate.bat"
+
 :: Esegui la scansione con notifica Telegram
 python signal_farm\main.py scan --watchlist beta --notify >> "%LOG_FILE%" 2>&1
 

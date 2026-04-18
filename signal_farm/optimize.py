@@ -21,6 +21,25 @@ sys.path.insert(0, os.path.dirname(__file__))
 import pandas as pd
 import yaml
 
+
+def _load_dotenv():
+    env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    if not os.path.exists(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+
+
+_load_dotenv()
+
 from data_feed.provider_factory import get_provider
 from signals.engine import prepare_aligned, apply_variant_signals
 from backtest.engine import run_backtest
@@ -76,6 +95,26 @@ GRIDS = {"A": GRID_A, "B": GRID_B, "C": GRID_C}
 # Asset-class-specific overrides (used when --stock-grid flag is set)
 GRIDS_STOCKS = {"A": GRID_A_STOCKS, "B": GRID_B_STOCKS, "C": GRID_C}
 
+# Small focused grid: keep structural params tight, sweep stop width + score gate.
+# 18 combos for A/B, 24 for C — fast run, no RSI tightening.
+GRID_SMALL_A = {
+    "pullback_lookback": [8, 10, 15],
+    "atr_stop_mult":     [1.5, 2.0],
+    "min_score":         [68, 72, 75],
+}
+GRID_SMALL_B = {
+    "keltner_lookback":  [10, 15, 20],
+    "atr_stop_mult":     [1.5, 2.0],
+    "min_score":         [68, 72, 75],
+}
+GRID_SMALL_C = {
+    "pullback_lookback": [8, 10],
+    "keltner_lookback":  [10, 15],
+    "atr_stop_mult":     [1.5, 2.0],
+    "min_score":         [68, 72, 75],
+}
+GRIDS_SMALL = {"A": GRID_SMALL_A, "B": GRID_SMALL_B, "C": GRID_SMALL_C}
+
 MIN_TRADES = 8
 
 
@@ -114,8 +153,14 @@ def run_grid(
     defaults: dict,
     min_trades: int = MIN_TRADES,
     use_stock_grid: bool = False,
+    use_small_grid: bool = False,
 ) -> pd.DataFrame:
-    grid_map = GRIDS_STOCKS if use_stock_grid else GRIDS
+    if use_small_grid:
+        grid_map = GRIDS_SMALL
+    elif use_stock_grid:
+        grid_map = GRIDS_STOCKS
+    else:
+        grid_map = GRIDS
     grid = grid_map.get(variant, GRIDS[variant])
     combos = list(_param_combinations(grid))
     total = len(combos)
@@ -209,7 +254,7 @@ def print_top(df: pd.DataFrame, top_n: int, ticker: str, variant: str):
     best = top.iloc[0]
     print(f"\n  Best: ", end="")
     print("  ".join(f"{c}={best[c]}" for c in param_cols))
-    print(f"  → Sharpe={best['Sharpe']:.2f}  PF={best['PF']:.2f}  "
+    print(f"  >> Sharpe={best['Sharpe']:.2f}  PF={best['PF']:.2f}  "
           f"MaxDD={best['MaxDD%']:.1f}%  Ret={best['Ret%']:.1f}%  "
           f"Trades={int(best['trades'])}")
 
@@ -234,6 +279,14 @@ def main():
         "--stock-grid", action="store_true",
         help="Use the extended us_stocks grid (higher min_score, wider stops)",
     )
+    parser.add_argument(
+        "--small-grid", action="store_true",
+        help="Use the small focused grid (18 combos per variant — fast run)",
+    )
+    parser.add_argument(
+        "--direction", default=None, choices=["LONG", "SHORT", "LONG,SHORT"],
+        help="Restrict allowed_directions in the profile (e.g. LONG for bull-only)",
+    )
     args = parser.parse_args()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -252,6 +305,13 @@ def main():
         provider = get_provider(ticker)
 
         print(f"\n>>> Fetching & preparing data for {ticker} ({asset_class}, {args.period})...")
+
+        # Apply direction override before prepare_aligned so the director
+        # only generates signals in the requested direction.
+        if args.direction:
+            profiles[asset_class] = copy.deepcopy(profiles[asset_class])
+            profiles[asset_class]["allowed_directions"] = args.direction.split(",")
+
         aligned_base, base_profile = prepare_aligned(
             ticker=ticker,
             asset_class=asset_class,
@@ -272,6 +332,7 @@ def main():
                 defaults=defaults,
                 min_trades=args.min_trades,
                 use_stock_grid=args.stock_grid,
+                use_small_grid=args.small_grid,
             )
 
             print_top(df, args.top, ticker, variant)
@@ -283,7 +344,7 @@ def main():
                     script_dir, "output", f"grid_{key}_{args.period}.csv"
                 )
                 df.to_csv(out_path, index=False)
-                print(f"\n  Saved → {out_path}")
+                print(f"\n  Saved >> {out_path}")
 
     if len(all_results) > 1:
         print(f"\n{'='*62}")

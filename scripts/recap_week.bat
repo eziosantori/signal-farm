@@ -7,6 +7,8 @@
 
 cd /d "%~dp0.."
 
+call "%~dp0..\.venv\Scripts\activate.bat"
+
 set LOG_DIR=%~dp0..\logs
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 

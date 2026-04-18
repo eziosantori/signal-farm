@@ -56,22 +56,33 @@ crypto:
 # ---------------------------------------------------------------------------
 named_watchlists:
   beta:
-    # MAG7 — Variant A (Pullback) per tutti, Variant B (Breakout) per i ticker con edge
+    # ── US Stocks ────────────────────────────────────────────────────────────
+    # MAG7 core
     - MSFT                              # ✅ Variant A Pullback (Sharpe 0.91)
     - {canonical: MSFT, variant: B}     # ✅ Variant B Breakout (Sharpe 1.17 LONG)
     - META                              # ✅ Variant A Pullback (Sharpe 0.74)
     - {canonical: META, variant: B}     # ✅ Variant B Breakout (Sharpe 2.20 LONG)
     - {canonical: GOOGL, variant: B}    # ✅ Variant B Breakout only (Sharpe 1.93 LONG)
-    - TSLA    # ✅ Sharpe 0.98
-    - AMZN    # ✅ Sharpe 0.68
-    - NVDA    # ⚠️ Sharpe 0.31 — marginal, incluso per il beta
-    # Indici
-    - NAS100  # ✅ Sharpe 0.86 (Variant B)
-    - GER40   # ✅ Sharpe 1.40 (Variant A)
-    # Metalli
-    - XAUUSD  # ✅ Sharpe 1.82 (Variant B)
-    # Forex
-    - EURUSD  # ✅ Sharpe 0.57 (Variant B)
-    - GBPUSD  # ✅ Sharpe 0.76 (Variant B)
-    # Crypto
-    - BTCUSD  # ⚠️ Sharpe 1.07 (Variant B) — incluso per beta
+    - TSLA                              # ✅ Sharpe 0.98 (Variant A)
+    - AMZN                              # ✅ Sharpe 0.68 (Variant A)
+    - NVDA                              # ⚠️ Sharpe 0.31 — marginal
+    # New additions — optimized 2y Alpaca, LONG only
+    - NFLX                              # ✅ Variant A Pullback (Sharpe 1.66)
+    - {canonical: NFLX, variant: B}     # ✅ Variant B Breakout (Sharpe 1.27)
+    - AMD                               # ✅ Variant B Breakout (Sharpe 1.20)
+    - PANW                              # ✅ Variant A Pullback (Sharpe 1.12)
+    - AMAT                              # ✅ Variant B Breakout (Sharpe 1.09)
+    - INTU                              # ✅ Variant A Pullback (Sharpe 0.98)
+    - XOM                               # ⚠️ Variant A Pullback (Sharpe 0.84)
+    - MA                                # ⚠️ Variant A Pullback (Sharpe 0.74)
+    - ADBE                              # ⚠️ Variant A Pullback (Sharpe 0.69)
+    # ── Indici ───────────────────────────────────────────────────────────────
+    - NAS100                            # ✅ Sharpe 0.86 (Variant B)
+    - GER40                             # ✅ Sharpe 1.40 (Variant A)
+    # ── Metalli ──────────────────────────────────────────────────────────────
+    - XAUUSD                            # ✅ Sharpe 1.82 (Variant B)
+    # ── Forex ────────────────────────────────────────────────────────────────
+    - EURUSD                            # ✅ Sharpe 0.57 (Variant B)
+    - GBPUSD                            # ✅ Sharpe 0.76 (Variant B)
+    # ── Crypto ───────────────────────────────────────────────────────────────
+    - BTCUSD                            # ⚠️ Sharpe 1.07 (Variant B)

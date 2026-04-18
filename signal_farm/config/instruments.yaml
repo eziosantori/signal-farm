@@ -334,18 +334,102 @@ us_stocks:
     asset_class: us_stocks
     description: "Netflix Inc."
     yfinance: "NFLX"
+    best_variant: A         # ✅ Sharpe 1.66 | PF 2.82 | +35.1% | 41 trades/2y  (B: 1.27 also good)
+    edge: "strong"
+    best_params: {pullback_lookback: 15, atr_stop_mult: 1.5, min_score: 72}
 
   AMD:
     feed: amdususd
     asset_class: us_stocks
     description: "Advanced Micro Devices"
     yfinance: "AMD"
+    best_variant: B         # ✅ Sharpe 1.20 | PF 1.81 | +23.6% | 61 trades/2y
+    edge: "good"
+    best_params: {keltner_lookback: 20, atr_stop_mult: 1.5, min_score: 72}
 
   QCOM:
     feed: qcomususd
     asset_class: us_stocks
     description: "Qualcomm Inc."
     yfinance: "QCOM"
+
+  # --- Nuovi candidati beta (backtest 2y Alpaca — aprile 2026) ---
+  AVGO:
+    feed: ~
+    asset_class: us_stocks
+    description: "Broadcom Inc."
+    yfinance: "AVGO"
+    # not yet backtested
+
+  ADBE:
+    feed: ~
+    asset_class: us_stocks
+    description: "Adobe Inc."
+    yfinance: "ADBE"
+    best_variant: A         # ⚠️ Sharpe 0.69 | PF 1.54 | +10.8% | 36 trades/2y
+    edge: "marginal"
+    best_params: {pullback_lookback: 15, atr_stop_mult: 1.5, min_score: 68}
+
+  AMAT:
+    feed: ~
+    asset_class: us_stocks
+    description: "Applied Materials Inc."
+    yfinance: "AMAT"
+    best_variant: B         # ✅ Sharpe 1.09 | PF 1.72 | +20.5% | 58 trades/2y
+    edge: "good"
+    best_params: {keltner_lookback: 20, atr_stop_mult: 1.5, min_score: 72}
+
+  INTU:
+    feed: ~
+    asset_class: us_stocks
+    description: "Intuit Inc."
+    yfinance: "INTU"
+    best_variant: A         # ✅ Sharpe 0.98 | PF 1.83 | +16.6% | 40 trades/2y
+    edge: "good"
+    best_params: {pullback_lookback: 10, atr_stop_mult: 1.5, min_score: 68}
+
+  PANW:
+    feed: ~
+    asset_class: us_stocks
+    description: "Palo Alto Networks Inc."
+    yfinance: "PANW"
+    best_variant: A         # ✅ Sharpe 1.12 | PF 1.76 | +23.2% | 55 trades/2y (B: negative — skip)
+    edge: "good"
+    best_params: {pullback_lookback: 15, atr_stop_mult: 1.5, min_score: 68}
+
+  COIN:
+    feed: ~
+    asset_class: us_stocks
+    description: "Coinbase Global Inc."
+    yfinance: "COIN"
+    # not yet backtested
+
+  CSCO:
+    feed: ~
+    asset_class: us_stocks
+    description: "Cisco Systems Inc."
+    yfinance: "CSCO"
+    best_variant: B         # ⚠️ Sharpe 0.68 | PF 1.36 | +13.8% | 77 trades/2y — low quality
+    edge: "none"
+    best_params: {keltner_lookback: 15, atr_stop_mult: 1.5, min_score: 68}
+
+  XOM:
+    feed: ~
+    asset_class: us_stocks
+    description: "Exxon Mobil Corp."
+    yfinance: "XOM"
+    best_variant: A         # ⚠️ Sharpe 0.84 | PF 1.70 | +14.3% | 37 trades/2y
+    edge: "marginal"
+    best_params: {pullback_lookback: 10, atr_stop_mult: 1.5, min_score: 68}
+
+  MA:
+    feed: ~
+    asset_class: us_stocks
+    description: "Mastercard Inc."
+    yfinance: "MA"
+    best_variant: A         # ⚠️ Sharpe 0.74 | PF 1.53 | +13.9% | 47 trades/2y
+    edge: "marginal"
+    best_params: {pullback_lookback: 10, atr_stop_mult: 1.5, min_score: 68}
 
   JPM:
     feed: ~                          # not available on Dukascopy

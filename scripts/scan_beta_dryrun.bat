@@ -7,6 +7,8 @@
 
 cd /d "%~dp0.."
 
+call "%~dp0..\.venv\Scripts\activate.bat"
+
 echo.
 echo ============================================================
 echo  Signal Farm Beta — DRY RUN
