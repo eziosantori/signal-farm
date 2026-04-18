@@ -352,6 +352,9 @@ us_stocks:
     asset_class: us_stocks
     description: "Qualcomm Inc."
     yfinance: "QCOM"
+    best_variant: A         # ❌ max Sharpe 0.49 su 3 varianti/3y — no edge
+    edge: "none"
+    best_params: {pullback_lookback: 10, atr_stop_mult: 2.0, min_score: 68}
 
   # --- Nuovi candidati beta (backtest 2y Alpaca — aprile 2026) ---
   AVGO:
@@ -430,6 +433,115 @@ us_stocks:
     best_variant: A         # ⚠️ Sharpe 0.74 | PF 1.53 | +13.9% | 47 trades/2y
     edge: "marginal"
     best_params: {pullback_lookback: 10, atr_stop_mult: 1.5, min_score: 68}
+
+  # --- Seconda tranche candidati beta (backtest 3y Alpaca — aprile 2026) ---
+  TSM:
+    feed: ~
+    asset_class: us_stocks
+    description: "Taiwan Semiconductor Manufacturing"
+    yfinance: "TSM"
+    best_variant: A         # ✅ Sharpe 0.96 | PF 1.73 | +31.5% | 76 trades/3y
+    edge: "good"
+    best_params: {pullback_lookback: 15, atr_stop_mult: 2.0, min_score: 68}
+
+  ZM:
+    feed: ~
+    asset_class: us_stocks
+    description: "Zoom Video Communications"
+    yfinance: "ZM"
+    best_variant: A         # ⚠️ Sharpe 0.86 | PF 1.83 | +17.2% | 40 trades/3y — pochi trade
+    edge: "marginal"
+    best_params: {pullback_lookback: 15, atr_stop_mult: 2.0, min_score: 75}
+
+  WMT:
+    feed: ~
+    asset_class: us_stocks
+    description: "Walmart Inc."
+    yfinance: "WMT"
+    best_variant: C         # ✅ Sharpe 1.37 | PF 2.16 | +37.1% | 62 trades/3y (B: 1.34 also strong)
+    edge: "strong"
+    best_params: {pullback_lookback: 8, keltner_lookback: 10, atr_stop_mult: 1.5, min_score: 68}
+
+  WDAY:
+    feed: ~
+    asset_class: us_stocks
+    description: "Workday Inc."
+    yfinance: "WDAY"
+    best_variant: A         # ⚠️ Sharpe 0.94 | PF 2.00 | +17.8% | 34 trades/3y — pochi trade
+    edge: "marginal"
+    best_params: {pullback_lookback: 8, atr_stop_mult: 2.0, min_score: 75}
+
+  VRSN:
+    feed: ~
+    asset_class: us_stocks
+    description: "VeriSign Inc."
+    yfinance: "VRSN"
+    best_variant: A         # ✅ Sharpe 1.04 | PF 2.19 | +20.8% | 36 trades/3y
+    edge: "good"
+    best_params: {pullback_lookback: 10, atr_stop_mult: 2.0, min_score: 72}
+
+  UBER:
+    feed: ~
+    asset_class: us_stocks
+    description: "Uber Technologies Inc."
+    yfinance: "UBER"
+    best_variant: A         # ✅ Sharpe 1.46 | PF 2.38 | +49.7% | 67 trades/3y
+    edge: "strong"
+    best_params: {pullback_lookback: 15, atr_stop_mult: 2.0, min_score: 68}
+
+  TMUS:
+    feed: ~
+    asset_class: us_stocks
+    description: "T-Mobile US Inc."
+    yfinance: "TMUS"
+    best_variant: B         # ✅ Sharpe 1.00 | PF 1.60 | +32.5% | 90 trades/3y (A: negative — skip)
+    edge: "good"
+    best_params: {keltner_lookback: 10, atr_stop_mult: 1.5, min_score: 72}
+
+  T:
+    feed: ~
+    asset_class: us_stocks
+    description: "AT&T Inc."
+    yfinance: "T"
+    best_variant: C         # ✅ Sharpe 1.49 | PF 2.90 | +37.5% | 43 trades/3y (A/B: weak)
+    edge: "strong"
+    best_params: {pullback_lookback: 8, keltner_lookback: 10, atr_stop_mult: 1.5, min_score: 72}
+
+  SHOP:
+    feed: ~
+    asset_class: us_stocks
+    description: "Shopify Inc."
+    yfinance: "SHOP"
+    best_variant: B         # ❌ max Sharpe 0.47 — nessuna variante funziona, skip
+    edge: "none"
+    best_params: {keltner_lookback: 10, atr_stop_mult: 1.5, min_score: 68}
+
+  PG:
+    feed: ~
+    asset_class: us_stocks
+    description: "Procter & Gamble Co."
+    yfinance: "PG"
+    best_variant: A         # ⚠️ Sharpe 0.79 | PF 1.96 | +14.8% | 30 trades/3y — troppo pochi
+    edge: "marginal"
+    best_params: {pullback_lookback: 8, atr_stop_mult: 1.5, min_score: 72}
+
+  PDD:
+    feed: ~
+    asset_class: us_stocks
+    description: "PDD Holdings Inc."
+    yfinance: "PDD"
+    best_variant: C         # ✅ Sharpe 1.25 | PF 2.12 | +29.9% | 54 trades/3y (B: 1.03 also good)
+    edge: "strong"
+    best_params: {pullback_lookback: 10, keltner_lookback: 15, atr_stop_mult: 1.5, min_score: 72}
+
+  BABA:
+    feed: ~
+    asset_class: us_stocks
+    description: "Alibaba Group Holding"
+    yfinance: "BABA"
+    best_variant: A         # ✅ Sharpe 1.21 | PF 2.97 | +26.1% | 31 trades/3y — PF altissimo
+    edge: "strong"
+    best_params: {pullback_lookback: 8, atr_stop_mult: 2.0, min_score: 75}
 
   JPM:
     feed: ~                          # not available on Dukascopy

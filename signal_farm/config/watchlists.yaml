@@ -76,6 +76,16 @@ named_watchlists:
     - XOM                               # ⚠️ Variant A Pullback (Sharpe 0.84)
     - MA                                # ⚠️ Variant A Pullback (Sharpe 0.74)
     - ADBE                              # ⚠️ Variant A Pullback (Sharpe 0.69)
+    # Seconda tranche — optimized 3y Alpaca, LONG only
+    - UBER                              # ✅ Variant A Pullback (Sharpe 1.46)
+    - T                                 # ✅ Variant C Hybrid  (Sharpe 1.49)
+    - WMT                               # ✅ Variant C Hybrid  (Sharpe 1.37)
+    - {canonical: WMT, variant: B}      # ✅ Variant B Breakout (Sharpe 1.34)
+    - PDD                               # ✅ Variant C Hybrid  (Sharpe 1.25)
+    - BABA                              # ✅ Variant A Pullback (Sharpe 1.21)
+    - VRSN                              # ✅ Variant A Pullback (Sharpe 1.04)
+    - TMUS                              # ✅ Variant B Breakout (Sharpe 1.00)
+    - TSM                               # ✅ Variant A Pullback (Sharpe 0.96)
     # ── Indici ───────────────────────────────────────────────────────────────
     - NAS100                            # ✅ Sharpe 0.86 (Variant B)
     - GER40                             # ✅ Sharpe 1.40 (Variant A)
