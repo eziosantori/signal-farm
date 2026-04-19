@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signal Farm Dashboard</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script src="https://unpkg.com/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <nav id="sidebar" class="expanded">
+    <div id="sidebar-header">
+      <span id="sidebar-title">Signal Farm</span>
+      <button id="sidebar-toggle" title="Collapse sidebar">&#8249;</button>
+    </div>
+
+    <div id="sidebar-body">
+      <input id="search-input" type="text" placeholder="Search backtest..." autocomplete="off">
+
+      <div id="backtest-list">
+        <p class="muted">Loading...</p>
+      </div>
+
+      <hr>
+      <a href="#/correlation" class="nav-link">Correlation Matrix</a>
+      <a href="#/compare" class="nav-link">Compare Backtests</a>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main id="content">
+
+    <!-- Backtest view -->
+    <section id="view-backtest" class="view">
+      <div id="backtest-header">
+        <div>
+          <h1 id="backtest-title">Select a backtest</h1>
+          <p id="backtest-meta"></p>
+        </div>
+        <div id="tf-selector-wrap">
+          <span class="muted" style="font-size:0.8em;">TIMEFRAME</span>
+          <div id="tf-selector"></div>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div id="tab-bar">
+        <button class="tab-btn active" data-tab="chart">Chart</button>
+        <button class="tab-btn" data-tab="equity">Equity</button>
+        <button class="tab-btn" data-tab="stats">Stats</button>
+        <button class="tab-btn" data-tab="params">Params</button>
+      </div>
+
+      <!-- Tab: Chart -->
+      <div id="tab-chart" class="tab-panel">
+        <div id="charts-trades-layout">
+          <div id="charts-col">
+            <div id="price-chart"></div>
+            <div id="rsi-chart"></div>
+          </div>
+          <div id="trades-col">
+            <div id="trades-panel-header">
+              Trades <span id="trades-count"></span>
+              <button onclick="window.app.openTradeModal()" title="Full view" style="float:right;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1em;">⤢</button>
+            </div>
+            <div id="trade-list-scroll">
+              <div id="trade-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Equity -->
+      <div id="tab-equity" class="tab-panel hidden">
+        <div id="equity-chart"></div>
+      </div>
+
+      <!-- Tab: Stats -->
+      <div id="tab-stats" class="tab-panel hidden">
+        <div id="stats-panel" class="stats-grid"></div>
+      </div>
+
+      <!-- Tab: Params -->
+      <div id="tab-params" class="tab-panel hidden">
+        <div id="params-panel"></div>
+      </div>
+    </section>
+
+    <!-- Correlation view -->
+    <section id="view-correlation" class="view hidden">
+      <div class="container">
+        <h1>Correlation Matrix</h1>
+        <div id="correlation-heatmap" style="height:700px;"></div>
+        <div id="rolling-correlation" style="height:500px; margin-top:2rem;"></div>
+      </div>
+    </section>
+
+    <!-- Compare view -->
+    <section id="view-compare" class="view hidden">
+      <div class="container">
+        <h1>Multi-Backtest Comparison</h1>
+        <div style="margin-bottom:2rem;">
+          <label>Select backtests (Ctrl+click):</label><br><br>
+          <select id="compare-select" multiple style="width:100%;height:150px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);padding:0.5rem;"></select>
+          <br><br>
+          <button id="compare-btn" class="btn-primary">Compare</button>
+          <label style="margin-left:2rem;">
+            <input type="checkbox" id="normalize-checkbox"> Normalize to 100
+          </label>
+        </div>
+        <div id="compare-equity-chart" style="height:500px;"></div>
+        <div id="compare-metrics-table" style="margin-top:2rem;"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Trade full-view modal -->
+  <div id="trades-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="window.app.closeTradeModal()"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="modal-title">All Trades</span>
+        <button onclick="window.app.closeTradeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <table id="modal-trade-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Entry</th><th>Exit</th><th>Dir</th>
+              <th>Entry $</th><th>Exit $</th><th>Stop</th><th>Target</th>
+              <th>PnL R</th><th>PnL %</th><th>Reason</th><th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="modal-trade-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/api.js"></script>
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

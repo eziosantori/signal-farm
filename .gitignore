@@ -23,6 +23,7 @@ build/
 # Backtest / output
 output/
 *.html
+!signal_farm/dashboard/static/**/*.html
 
 # Runtime state & history
 .signal_farm_state.json
