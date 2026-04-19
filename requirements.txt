@@ -6,4 +6,6 @@ plotly>=5.20
 matplotlib>=3.8
 PyYAML>=6.0
 pytest>=7.0
+fastapi>=0.100
+uvicorn>=0.22
 # Node.js + npx must be installed separately for DukascopyProvider

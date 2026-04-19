@@ -655,6 +655,71 @@ def cmd_recap(args):
         sys.exit(1)
 
 
+def cmd_dashboard(args, profiles, defaults):
+    """Handle dashboard subcommands."""
+    from dashboard.exporter import export_single_backtest, export_batch, export_correlation_matrix
+    from dashboard.server import start_server
+
+    action = args.dashboard_action
+
+    if action == "export":
+        provider = _resolve_provider_and_ticker(args)[0]
+        profiles = _apply_direction_override(args, profiles)
+        export_single_backtest(
+            ticker=args.ticker,
+            asset_class=args.asset,
+            variant=args.variant,
+            provider=provider,
+            profiles=profiles,
+            defaults=defaults,
+            period=args.period,
+        )
+        print(f"Exported {args.ticker} {args.variant} ({args.period})")
+
+    elif action == "export-beta":
+        from data_feed.provider_factory import get_provider
+
+        instruments, watchlists = load_catalog()
+        beta_tickers = watchlists.get("named_watchlists", {}).get("beta", [])
+
+        if not beta_tickers:
+            print("Error: beta watchlist not found in watchlists.yaml")
+            sys.exit(1)
+
+        # Get provider for us_stocks
+        provider = get_provider("us_stocks", getattr(args, "provider", "auto"), profiles, defaults)
+        profiles = _apply_direction_override(args, profiles)
+
+        items_to_export = []
+        for ticker in beta_tickers:
+            inst = instruments.get("us_stocks", {}).get(ticker, {})
+            variant = args.variant or inst.get("best_variant", "A")
+            items_to_export.append({
+                "ticker": ticker,
+                "asset_class": "us_stocks",
+                "variant": variant,
+                "period": args.period,
+            })
+
+        print(f"Exporting {len(items_to_export)} beta watchlist backtests...")
+        results = export_batch(items_to_export, provider, profiles, defaults)
+        print(f"\n✓ Exported {len(results)} backtests to output/dashboard_data/")
+
+    elif action == "correlation":
+        print("Computing correlation matrix...")
+        export_correlation_matrix()
+        print("✓ Correlation matrix generated")
+
+    elif action == "serve":
+        print(f"✓ Starting dashboard server on http://localhost:{args.port}")
+        print("  Open your browser and navigate to the URL above")
+        print("  Press Ctrl+C to stop the server")
+        try:
+            start_server(port=args.port, open_browser=args.open)
+        except KeyboardInterrupt:
+            print("\n✓ Server stopped")
+
+
 def _parse_hours(last_str: str) -> float:
     """Parse strings like '24h', '2h', '48h' into a float number of hours."""
     last_str = last_str.strip().lower()
@@ -746,6 +811,33 @@ def build_parser():
     rc.add_argument("--dry-run", action="store_true", dest="dry_run",
                     help="Preview the recap message without sending it to Telegram")
 
+    # ── dashboard ──
+    ds = sub.add_parser("dashboard", help="Backtest visualization dashboard")
+    ds_sub = ds.add_subparsers(dest="dashboard_action", required=True)
+
+    # export single
+    ds_export = ds_sub.add_parser("export", help="Export single backtest to JSON")
+    ds_export.add_argument("--ticker", required=True)
+    ds_export.add_argument("--asset", required=True)
+    ds_export.add_argument("--variant", required=True, choices=["A", "B", "C"])
+    ds_export.add_argument("--period", default="2y")
+    ds_export.add_argument("--direction", default=None)
+    ds_export.add_argument("--provider", choices=["auto", "yfinance", "dukascopy"], default="auto")
+
+    # export batch
+    ds_batch = ds_sub.add_parser("export-beta", help="Export all beta watchlist backtests")
+    ds_batch.add_argument("--period", default="2y")
+    ds_batch.add_argument("--direction", default=None)
+    ds_batch.add_argument("--variant", default=None, choices=["A", "B", "C"])
+
+    # correlation
+    ds_corr = ds_sub.add_parser("correlation", help="Compute correlation matrix from exported data")
+
+    # serve
+    ds_serve = ds_sub.add_parser("serve", help="Start local dashboard server")
+    ds_serve.add_argument("--port", type=int, default=8501)
+    ds_serve.add_argument("--open", action="store_true", help="Open browser automatically")
+
     return parser
 
 
@@ -768,6 +860,8 @@ def main():
         cmd_scan(args, profiles, defaults)
     elif args.command == "recap":
         cmd_recap(args)
+    elif args.command == "dashboard":
+        cmd_dashboard(args, profiles, defaults)
 
 
 if __name__ == "__main__":
